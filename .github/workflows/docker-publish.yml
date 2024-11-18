@@ -1,4 +1,4 @@
-name: Publish Docker Image
+name: Build and Push Docker Image
 
 on:
   push:
@@ -14,18 +14,25 @@ jobs:
       packages: write
 
     steps:
-      # Clonar el repositorio
-      - name: Checkout repository
+      # Checkout del repositorio
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Configurar Docker
+      # Configurar Docker Buildx
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Iniciar sesión en GHCR
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      # Construir la imagen
-      - name: Build Docker image
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest .
-
-      # Subir la imagen
-      - name: Push Docker image
-        run: docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+      # Construir y publicar la imagen
+      - name: Build and push Docker image
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest \
+            --push .
