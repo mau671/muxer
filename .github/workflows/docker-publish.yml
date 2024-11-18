@@ -1,0 +1,31 @@
+name: Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Clonar el repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Configurar Docker
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Construir la imagen
+      - name: Build Docker image
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest .
+
+      # Subir la imagen
+      - name: Push Docker image
+        run: docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
