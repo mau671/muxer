@@ -1,7 +1,7 @@
-# Imagen base para Python y UV
+# Base image for Python and UV
 FROM ghcr.io/astral-sh/uv:python3.12-alpine AS runtime
 
-# Instalar MKVToolNix y dependencias necesarias
+# Install MKVToolNix and necessary dependencies
 RUN apk add --no-cache \
     mkvtoolnix \
     boost-filesystem \
@@ -12,17 +12,17 @@ RUN apk add --no-cache \
     libvorbis \
     cmark
 
-# Crear directorio para la aplicación
+# Create directory for the application
 WORKDIR /app
 
-# Copiar el proyecto al contenedor
+# Copy the project to the container
 COPY . /app
 
-# Sincronizar el entorno con UV
+# Synchronize the environment with UV
 RUN uv sync --frozen
 
-# Configurar el PATH para incluir el entorno virtual creado por UV
+# Configure the PATH to include the virtual environment created by UV
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Usar ENTRYPOINT para manejar correctamente los argumentos
+# Use ENTRYPOINT to properly handle arguments
 ENTRYPOINT ["uv", "run", "main.py"]
