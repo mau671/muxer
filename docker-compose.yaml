@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: muxer:latest
     container_name: muxer
     tty: true
     volumes:
