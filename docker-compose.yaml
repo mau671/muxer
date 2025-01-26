@@ -1,8 +1,11 @@
 services:
   app:
-    image: ghcr.io/mau671/muxer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: muxer
     tty: true
     volumes:
-      - /mnt/downloads/anime/:/app/data
-    command: ["--input", "/app/data/input", "--output", "/app/data/output", "--delete-after"]
+      - ./input/:/app/data/input
+      - ./output/:/app/data/output
+    command: ["--input", "/app/data/input", "--output", "/app/data/output"]
