@@ -30,216 +30,204 @@ def get_mkv_metadata(input_file):
     return metadata
 
 
-def process_video_tracks(metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+def process_tracks(metadata):
     """
-    Extracts and processes video tracks from the metadata.
-
+    Processes the tracks from the given metadata, categorizing them into video, audio, and subtitle tracks.
+    It also sets default tracks based on specific language and title criteria.
     Args:
-        metadata (Dict[str, Any]): Metadata containing track information.
-
+        metadata (dict): A dictionary containing track metadata. The dictionary should have a 'tracks' key,
+                         which is a list of track dictionaries. Each track dictionary should have a 'type' key
+                         (indicating 'video', 'audio', or 'subtitles') and a 'properties' key containing track properties.
     Returns:
-        List[Dict[str, Any]]: A list of video track dictionaries.
+        list: A list of processed tracks with updated properties.
+    Track Properties:
+        - type (str): The type of the track ('video', 'audio', 'subtitles').
+        - properties (dict): A dictionary containing track properties such as:
+            - language (str): The language code of the track.
+            - language_ietf (str): The IETF language tag of the track.
+            - track_name (str): The name of the track.
+            - default_track (bool): Indicates if the track is the default track.
+            - forced_track (bool): Indicates if the track is a forced track.
+    Processing Details:
+        - Video tracks are collected as-is.
+        - Audio tracks are processed to set default tracks based on language and title criteria.
+            - Spanish (Latin America) is prioritized and set as default if found.
+            - Spanish (Spain) is set if no Latin American Spanish is found.
+            - Japanese, Chinese, Korean, and English tracks are also processed and default tracks are set accordingly.
+        - Subtitle tracks are processed to set default and forced tracks based on language and title criteria.
+            - Spanish (Latin America) forced subtitles are prioritized and set as default if found.
+            - Spanish (Spain) subtitles are set if no Latin American Spanish subtitles are found.
+            - English subtitles are processed and default tracks are set accordingly.
     """
-    return [track for track in metadata["tracks"] if track["type"] == "video"]
+    video_tracks = []
+    audio_tracks = []
+    subtitle_tracks = []
 
+    for track in metadata['tracks']:
+        if track['type'] == 'video':
+            video_tracks.append(track)
+        elif track['type'] == 'audio':
+            audio_tracks.append(track)
+        elif track['type'] == 'subtitles':
+            subtitle_tracks.append(track)
 
-def process_audio_tracks(audio_tracks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Processes audio tracks, setting appropriate properties like language, track name, and default status.
-
-    Args:
-        audio_tracks (List[Dict[str, Any]]): A list of audio track dictionaries.
-
-    Returns:
-        List[Dict[str, Any]]: A list of processed audio track dictionaries.
-    """
     processed_audio_tracks = []
     default_spa_audio_set = False
     default_audio_set = False
 
     for track in audio_tracks:
-        lang = track["properties"].get(
-            "language_ietf", track["properties"].get("language")
-        )
-        title = track["properties"].get("track_name", "").lower()
-
-        if lang == "es-419" or "lat" in title:
-            # Set Spanish (Latin America) as the default track
-            track["properties"].update(
-                {
-                    "track_name": "Spanish (Latin America)",
-                    "language_ietf": "es-419",
-                    "default_track": True,
-                }
-            )
+        lang = track['properties'].get('language_ietf', track['properties'].get('language'))
+        title = track['properties'].get('track_name', '').lower()
+        if lang == 'es-419' or 'lat' in title:
+            track['properties']['track_name'] = 'Spanish (Latin America)'
+            track['properties']['language_ietf'] = 'es-419'
+            track['properties']['default_track'] = True
             processed_audio_tracks.append(track)
             default_spa_audio_set = True
             break
 
     if not default_spa_audio_set:
         for track in audio_tracks:
-            lang = track["properties"].get("language")
-            title = track["properties"].get("track_name", "").lower()
-            lang_code = track["properties"].get(
-                "language_ietf", track["properties"].get("language")
-            )
-
-            if lang == "spa":
-                if "lat" in title or lang_code == "es-419":
-                    # Set Spanish (Latin America)
-                    track["properties"].update(
-                        {
-                            "track_name": "Spanish (Latin America)",
-                            "language_ietf": "es-419",
-                        }
-                    )
-                elif lang_code in ["es-ES", "es-724"] or "europ" in title:
-                    # Set Spanish (Spain)
-                    track["properties"].update(
-                        {"track_name": "Spanish (Spain)", "language_ietf": "es-ES"}
-                    )
+            lang = track['properties'].get('language')
+            title = track['properties'].get('track_name', '').lower()
+            lang_code = track['properties'].get('language_ietf', track['properties'].get('language'))
+            if lang == 'spa':
+                if 'lat' in title or lang_code == 'es-419':
+                    track['properties']['track_name'] = 'Spanish (Latin America)'
+                    track['properties']['language_ietf'] = 'es-419'
                 else:
-                    track["properties"]["track_name"] = "Spanish"
-
-                track["properties"]["default_track"] = True
+                    # If it has "European" in the name or the code is es-ES or es-724, change to "Spanish (Spain)" and the language to es-ES
+                    if lang_code in ['es-ES', 'es-724'] or 'europ' in title:
+                        track['properties']['track_name'] = 'Spanish (Spain)'
+                        track['properties']['language_ietf'] = 'es-ES'
+                    else:
+                        track['properties']['track_name'] = 'Spanish'
+                track['properties']['default_track'] = True
                 processed_audio_tracks.append(track)
                 default_spa_audio_set = True
                 break
 
     for track in audio_tracks:
-        lang = track["properties"].get("language")
-        if lang in ["jpn", "chi", "kor", "eng"]:
-            # Map language codes to readable track names
-            lang_mappings = {
-                "jpn": "Japanese",
-                "chi": "Chinese",
-                "kor": "Korean",
-                "eng": "English",
-            }
-            track["properties"]["track_name"] = lang_mappings[lang]
-
-            if lang == "chi":
-                track["properties"]["language_ietf"] = "zh-CN"
-
-            track["properties"]["default_track"] = (
-                not default_spa_audio_set and not default_audio_set
-            )
-
-            if track["properties"]["default_track"]:
+        lang = track['properties'].get('language')
+        if lang == 'jpn':
+            track['properties']['track_name'] = 'Japanese'
+            if not default_spa_audio_set:
+                track['properties']['default_track'] = True
                 default_audio_set = True
+            else:
+                track['properties']['default_track'] = False
 
             processed_audio_tracks.append(track)
+        elif lang == 'chi':
+            track['properties']['language_ietf'] = 'zh-CN'
+            track['properties']['track_name'] = 'Chinese'
+            if not default_audio_set or not default_spa_audio_set:
+                track['properties']['default_track'] = True
+                default_audio_set = True
+            else:
+                track['properties']['default_track'] = False
+            processed_audio_tracks.append(track)
+        elif lang == 'kor':
+            track['properties']['track_name'] = 'Korean'
+            if not default_spa_audio_set or not default_audio_set:
+                track['properties']['default_track'] = True
+                default_audio_set = True
+            else:
+                track['properties']['default_track'] = False
+            processed_audio_tracks.append(track)
+        elif lang == 'eng':
+            track['properties']['track_name'] = 'English'
+            processed_audio_tracks.append(track)
+            if not default_spa_audio_set and not default_audio_set:
+                track['properties']['default_track'] = True
+                default_audio_set = True
+            else:
+                track['properties']['default_track'] = False
 
-    return processed_audio_tracks
-
-
-def process_subtitle_tracks(
-    subtitle_tracks: List[Dict[str, Any]], default_spa_audio_set: bool
-) -> List[Dict[str, Any]]:
-    """
-    Processes subtitle tracks, setting properties like language, track name, and default status.
-
-    Args:
-        subtitle_tracks (List[Dict[str, Any]]): A list of subtitle track dictionaries.
-        default_spa_audio_set (bool): Whether a default Spanish audio track is set.
-
-    Returns:
-        List[Dict[str, Any]]: A list of processed subtitle track dictionaries.
-    """
     processed_subtitle_tracks = []
     default_subtitle_set = False
     found_forced_subtitle = False
 
     for track in subtitle_tracks:
-        lang = track["properties"].get(
-            "language_ietf", track["properties"].get("language")
-        )
-        title = track["properties"].get("track_name", "").lower()
-        forced = track["properties"].get("forced_track", False)
-
-        if (lang == "es-419" or "lat" in title) and lang != "hi-Latn":
-            if "forced" in title or forced:
-                # Set Spanish (Latin America) forced subtitle
-                track["properties"].update(
-                    {
-                        "track_name": "Spanish (Latin America) [Forced]",
-                        "forced_track": True,
-                        "default_track": True,
-                        "language_ietf": "es-419",
-                    }
-                )
+        lang = track['properties'].get('language_ietf', track['properties'].get('language'))
+        title = track['properties'].get('track_name', '').lower()
+        forced = track['properties'].get('forced_track', False)
+        if (lang in ['es-419','es-MX'] or 'lat' in title) and lang != 'hi-Latn':
+            if 'forced' in title or forced:
+                track['properties']['track_name'] = 'Spanish (Latin America) [Forced]'
+                track['properties']['forced_track'] = True
+                track['properties']['default_track'] = True
+                track['properties']['language_ietf'] = 'es-419'
+                if 'ao' in title:
+                    track['properties']['track_name'] += ' [AO]'
+                processed_subtitle_tracks.insert(0, track)
                 default_subtitle_set = True
                 found_forced_subtitle = True
             else:
-                # Set Spanish (Latin America) subtitle
-                track["properties"].update(
-                    {"track_name": "Spanish (Latin America)", "language_ietf": "es-419"}
-                )
-
-                track["properties"]["default_track"] = (
-                    not found_forced_subtitle and not default_spa_audio_set
-                )
-                default_subtitle_set = track["properties"]["default_track"]
-
-            processed_subtitle_tracks.append(track)
-
+                track['properties']['track_name'] = 'Spanish (Latin America)'
+                track['properties']['language_ietf'] = 'es-419'
+                if not found_forced_subtitle:
+                    if not default_spa_audio_set:
+                        track['properties']['default_track'] = True
+                        default_subtitle_set = True
+                    else:
+                        track['properties']['default_track'] = False
+                else:
+                    track['properties']['default_track'] = False
+                if 'ao' in title:
+                    track['properties']['track_name'] += ' [AO]'
+                if 'sdh' in title:
+                    track['properties']['track_name'] += ' [SDH]'
+                if 'cc' in title:
+                    track['properties']['track_name'] += ' [CC]'
+                if 'dub' in title:
+                    track['properties']['track_name'] += ' [Dubtitle]'
+                processed_subtitle_tracks.append(track)
+        
     if not default_subtitle_set:
         for track in subtitle_tracks:
-            lang = track["properties"].get("language")
-            title = track["properties"].get("track_name", "").lower()
-
-            if lang == "spa":
-                # Set default Spanish subtitle if none exists
-                track["properties"]["track_name"] = "Spanish"
-                track["properties"]["default_track"] = (
-                    not found_forced_subtitle or not default_spa_audio_set
-                )
-                default_subtitle_set = track["properties"]["default_track"]
+            lang = track['properties'].get('language')
+            title = track['properties'].get('track_name', '').lower()
+            lang_code = track['properties'].get('language_ietf', track['properties'].get('language'))
+            if lang == 'spa' and not default_subtitle_set:
+                if lang_code == 'es-ES' or 'europ' in title:
+                    track['properties']['track_name'] = 'Spanish (Spain)'
+                    track['properties']['language_ietf'] = 'es-ES'
+                else:
+                    track['properties']['track_name'] = 'Spanish'
+                # Debe ser True si no se ha encontrado un subtítulo forzado o si no hay audio en español
+                track['properties']['default_track'] = not found_forced_subtitle or not default_spa_audio_set
+                default_subtitle_set = track['properties']['default_track']
+                if 'sdh' in title:
+                    track['properties']['track_name'] += ' [SDH]'
+                if 'cc' in title:
+                    track['properties']['track_name'] += ' [CC]'
+                if 'dub' in title:
+                    track['properties']['track_name'] += ' [Dubtitle]'
                 processed_subtitle_tracks.append(track)
                 break
 
     for track in subtitle_tracks:
-        lang = track["properties"].get("language")
-        title = track["properties"].get("track_name", "").lower()
-        forced = track["properties"].get("forced_track", False)
-
-        if lang == "eng":
-            if "forced" in title or forced:
-                # Set English forced subtitle
-                track["properties"]["track_name"] = "English [Forced]"
-                track["properties"]["forced_track"] = True
+        lang = track['properties'].get('language')
+        forced = track['properties'].get('forced_track', False)
+        title = track['properties'].get('track_name', '').lower()
+        if lang == 'eng':
+            if 'forced' in title or forced:
+                track['properties']['track_name'] = 'English [Forced]'
+                track['properties']['forced_track'] = True
             else:
-                track["properties"]["track_name"] = "English"
-
-            track["properties"]["default_track"] = not default_subtitle_set
+                track['properties']['track_name'] = 'English'
+            if not default_subtitle_set:
+                track['properties']['default_track'] = True
+            else:
+                track['properties']['default_track'] = False
+            if 'sdh' in title:
+                track['properties']['track_name'] += ' [SDH]'
+            if 'cc' in title:
+                track['properties']['track_name'] += ' [CC]'
+            if 'dub' in title:
+                track['properties']['track_name'] += ' [Dubtitle]'
             processed_subtitle_tracks.append(track)
-
-    return processed_subtitle_tracks
-
-
-def process_tracks(metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    Processes metadata to extract and process video, audio, and subtitle tracks.
-
-    Args:
-        metadata (Dict[str, Any]): Metadata containing track information.
-
-    Returns:
-        List[Dict[str, Any]]: A list of processed track dictionaries.
-    """
-    video_tracks = process_video_tracks(metadata)
-    audio_tracks = [track for track in metadata["tracks"] if track["type"] == "audio"]
-    subtitle_tracks = [
-        track for track in metadata["tracks"] if track["type"] == "subtitles"
-    ]
-
-    processed_audio_tracks = process_audio_tracks(audio_tracks)
-    processed_subtitle_tracks = process_subtitle_tracks(
-        subtitle_tracks,
-        any(
-            track["properties"].get("default_track") for track in processed_audio_tracks
-        ),
-    )
 
     return video_tracks + processed_audio_tracks + processed_subtitle_tracks
 
