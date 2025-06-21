@@ -1,12 +1,26 @@
 services:
-  app:
+  muxer:
     build:
       context: .
       dockerfile: Dockerfile
     image: muxer:latest
     container_name: muxer
     tty: true
+    stdin_open: true
     volumes:
-      - ./input/:/app/data/input
-      - ./output/:/app/data/output
-    command: ["--input", "/app/data/input", "--output", "/app/data/output"]
+      - ./data:/data
+    working_dir: /app
+    command: ["-i", "/data"]
+    
+  # Alternative service for single file processing
+  muxer-single:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: muxer:latest
+    container_name: muxer-single
+    tty: true
+    volumes:
+      - ./data:/data
+    working_dir: /app
+    # Override with: docker-compose run muxer-single -i /data/yourfile.mkv

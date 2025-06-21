@@ -1,0 +1,194 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for versioning
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Check code formatting
+      run: uv run python -m black --check app/
+      continue-on-error: true
+    
+    - name: Test import
+      run: uv run python -c "from app.main import main; print('Import successful')"
+    
+    - name: Test CLI
+      run: uv run python run.py --help
+
+  build-binary:
+    needs: test
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+    
+    - name: Set up Python
+      run: uv python install 3.12
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Install build dependencies
+      run: uv add --dev pyinstaller
+    
+    - name: Build binary
+      run: |
+        uv run pyinstaller --onefile \
+          --name muxer \
+          --hidden-import=app \
+          --add-data "app:app" \
+          run.py
+    
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: muxer-linux-x64
+        path: dist/muxer
+
+  build-docker:
+    needs: test
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Generate version
+      id: version
+      run: |
+        # Generate version based on date and short SHA
+        VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Generated version: $VERSION"
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository_owner }}/muxer:latest
+          ghcr.io/${{ github.repository_owner }}/muxer:${{ steps.version.outputs.version }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  create-release:
+    needs: [test, build-binary, build-docker]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate version
+      id: version
+      run: |
+        VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Generated version: $VERSION"
+    
+    - name: Download binary artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: muxer-linux-x64
+        path: ./artifacts
+    
+    - name: Make binary executable
+      run: chmod +x ./artifacts/muxer
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get commits since last tag or from beginning
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        else
+          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        fi
+        
+        # Create changelog
+        cat > CHANGELOG.md << EOF
+        ## Changes in ${{ steps.version.outputs.version }}
+        
+        $COMMITS
+        
+        ## Docker Image
+        \`\`\`bash
+        docker pull ghcr.io/${{ github.repository_owner }}/muxer:${{ steps.version.outputs.version }}
+        \`\`\`
+        
+        ## Binary Usage
+        \`\`\`bash
+        ./muxer -i /path/to/video.mkv
+        ./muxer -i /path/to/directory/
+        \`\`\`
+        EOF
+    
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        bodyFile: CHANGELOG.md
+        artifacts: "./artifacts/muxer"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        draft: false
+        prerelease: false 

@@ -2,7 +2,7 @@ import argparse
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="")
+    parser = argparse.ArgumentParser(description="MKV file processor with automatic track naming and language configuration")
 
     parser.add_argument(
         "-i", "--input", required=True, help="Path to the input file or directory"
@@ -16,4 +16,4 @@ def parse_arguments():
         help="Delete the source files after processing",
     )
 
-    return parser.parse_args()
+    return parser.parse_args() 

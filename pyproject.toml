@@ -1,7 +1,44 @@
 [project]
 name = "muxer"
-version = "0.1.0"
-description = "Add your description here"
+dynamic = ["version"]
+description = "MKV file processor with automatic track naming and language configuration"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "rich>=14.0.0",
+]
+authors = [
+    {name = "Mauricio González Prendas"},
+]
+license = {text = "MIT"}
+keywords = ["mkv", "video", "muxing", "subtitles", "audio"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+]
+
+[project.urls]
+Homepage = "https://github.com/mau671/muxer"
+"Bug Reports" = "https://github.com/mau671/muxer/issues"
+"Source" = "https://github.com/mau671/muxer"
+
+[project.scripts]
+muxer = "app.main:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.hatch.build.hooks.vcs]
+version-file = "app/_version.py"
