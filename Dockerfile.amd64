@@ -1,0 +1,48 @@
+FROM python:3.12-slim
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libc6-dev \
+        libffi-dev \
+        git \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies (this layer will be cached if deps don't change)
+RUN uv sync --group dev --no-cache
+
+# Copy source code
+COPY app/ ./app/
+COPY run.py ./
+COPY README.md LICENSE ./
+
+# Build the binary
+RUN uv run pyinstaller \
+    --onefile \
+    --name muxer-linux-amd64 \
+    --hidden-import=app \
+    --add-data "app:app" \
+    --strip \
+    --exclude-module tkinter \
+    --exclude-module matplotlib \
+    --exclude-module numpy \
+    --exclude-module pandas \
+    --exclude-module PIL \
+    --exclude-module PyQt5 \
+    --exclude-module PyQt6 \
+    --noupx \
+    run.py
+
+# Verify the binary was created
+RUN ls -la dist/ && \
+    echo "Binary size:" && \
+    du -h dist/muxer-linux-amd64 && \
+    file dist/muxer-linux-amd64 

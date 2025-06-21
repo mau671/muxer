@@ -106,54 +106,46 @@ jobs:
     - name: Build binary (AMD64)
       if: matrix.arch == 'amd64'
       run: |
+        # Use native build for AMD64 (much faster)
         uv run pyinstaller --onefile \
           --name muxer-${{ matrix.platform }}-${{ matrix.arch }} \
           --hidden-import=app \
           --add-data "app:app" \
+          --strip \
+          --exclude-module tkinter \
+          --exclude-module matplotlib \
+          --exclude-module numpy \
+          --exclude-module pandas \
+          --exclude-module PIL \
+          --exclude-module PyQt5 \
+          --exclude-module PyQt6 \
+          --noupx \
           run.py
     
     - name: Build binary (ARM64 with emulation)
       if: matrix.arch == 'arm64'
-      timeout-minutes: 15
+      timeout-minutes: 12
       run: |
         # Create dist directory
         mkdir -p ./dist
         
-        # Simple Docker build for ARM64 - no multi-stage
-        cat > Dockerfile.arm64 << 'EOF'
-        FROM --platform=linux/arm64 python:3.12-alpine
+        # Build using dedicated Dockerfile with buildx for proper platform handling
+        docker buildx build \
+          --platform linux/arm64 \
+          --file Dockerfile.arm64 \
+          --tag muxer-arm64-temp \
+          --load \
+          .
         
-        # Install build dependencies
-        RUN apk add --no-cache gcc musl-dev libffi-dev
-        
-        WORKDIR /app
-        COPY . .
-        
-        # Install uv and build (simplified)
-        RUN pip install --no-cache-dir uv
-        RUN uv sync --group dev --no-cache
-        RUN uv run pyinstaller --onefile \
-            --name muxer-linux-arm64 \
-            --hidden-import=app \
-            --add-data "app:app" \
-            --strip \
-            run.py
-        
-        # Show what was created
-        RUN ls -la dist/ && echo "Binary size:" && du -h dist/muxer-linux-arm64
-        EOF
-        
-        # Build the image
-        docker build --platform linux/arm64 -f Dockerfile.arm64 -t muxer-arm64-temp .
-        
-        # Extract the binary
+        # Extract the binary using docker cp
         docker create --name temp-extract muxer-arm64-temp
         docker cp temp-extract:/app/dist/muxer-linux-arm64 ./dist/muxer-linux-arm64
         docker rm temp-extract
         docker rmi muxer-arm64-temp
         
-        echo "Final binary check:"
+        echo "Final binary verification:"
         ls -la ./dist/
+        file ./dist/muxer-linux-arm64
     
     - name: Verify binary was created
       run: |

@@ -66,9 +66,12 @@ output/
 .github/
 
 # Docker
-Dockerfile*
 docker-compose*
 .dockerignore
+
+# Keep main Dockerfile but exclude CI-specific ones
+Dockerfile.amd64
+Dockerfile.arm64
 
 # Misc
 .DS_Store

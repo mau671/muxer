@@ -1,0 +1,58 @@
+FROM python:3.12-slim
+
+# Install build dependencies - use slim instead of alpine for faster build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libc6-dev \
+        libffi-dev \
+        git \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies (this layer will be cached if deps don't change)
+RUN uv sync --group dev --no-cache
+
+# Copy source code
+COPY app/ ./app/
+COPY run.py ./
+COPY README.md LICENSE ./
+
+# Build the binary with optimizations for faster build
+RUN uv run pyinstaller \
+    --onefile \
+    --name muxer-linux-arm64 \
+    --hidden-import=app \
+    --add-data "app:app" \
+    --strip \
+    --exclude-module tkinter \
+    --exclude-module matplotlib \
+    --exclude-module numpy \
+    --exclude-module pandas \
+    --exclude-module PIL \
+    --exclude-module PyQt5 \
+    --exclude-module PyQt6 \
+    --exclude-module sqlite3 \
+    --exclude-module unittest \
+    --exclude-module email \
+    --exclude-module html \
+    --exclude-module http \
+    --exclude-module urllib3 \
+    --exclude-module xml \
+    --exclude-module pydoc \
+    --noupx \
+    --noconfirm \
+    --clean \
+    run.py
+
+# Verify the binary was created and show its size
+RUN ls -la dist/ && \
+    echo "Binary size:" && \
+    du -h dist/muxer-linux-arm64 && \
+    file dist/muxer-linux-arm64 
