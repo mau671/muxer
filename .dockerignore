@@ -49,10 +49,10 @@ htmlcov/
 .tox/
 .nox/
 
-# Documentation
+# Documentation (exclude specific files but keep README.md)
 docs/
-*.md
-!README.md
+CHANGELOG.md
+CONTRIBUTING.md
 
 # Data files (these should be mounted)
 data/

@@ -19,7 +19,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Copy project files to container
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY app/ ./app/
 COPY run.py ./
 
