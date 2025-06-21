@@ -194,8 +194,8 @@ jobs:
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        tag: v${{ steps.version.outputs.version }}
-        name: Release v${{ steps.version.outputs.version }}
+        tag: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
         bodyFile: CHANGELOG.md
         artifacts: "./artifacts/muxer"
         token: ${{ secrets.GITHUB_TOKEN }}
