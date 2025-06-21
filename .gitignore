@@ -15,3 +15,6 @@ output/
 
 # Libraries
 lib/
+
+#test files
+data/
