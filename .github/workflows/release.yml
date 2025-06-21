@@ -33,12 +33,14 @@ jobs:
       uses: astral-sh/ruff-action@v3
       with:
         src: "./app"
+        version-file: "./pyproject.toml"
         args: "check"
     
     - name: Check code formatting with ruff
       uses: astral-sh/ruff-action@v3
       with:
         src: "./app"
+        version-file: "./pyproject.toml"
         args: "format --check --diff"
     
     - name: Test import
