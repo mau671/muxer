@@ -51,38 +51,86 @@ jobs:
 
   build-binary:
     needs: test
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     if: github.ref == 'refs/heads/main'
+    
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: amd64
+            docker-platform: linux/amd64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: arm64
+            docker-platform: linux/arm64
     
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
       with:
-        enable-cache: true
+        platforms: all
     
-    - name: Set up Python
-      run: uv python install 3.12
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
     
-    - name: Install dependencies
-      run: uv sync --group dev
-    
-    - name: Build binary
+    - name: Generate version
+      id: version
       run: |
-        uv run pyinstaller --onefile \
-          --name muxer \
-          --hidden-import=app \
-          --add-data "app:app" \
-          run.py
+        VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Generated version: $VERSION"
+    
+    - name: Build binary with Docker
+      run: |
+        # Create a multi-stage Dockerfile for building
+        cat > Dockerfile.build << 'EOF'
+        FROM --platform=${{ matrix.docker-platform }} ghcr.io/astral-sh/uv:python3.12-alpine AS builder
+        
+        # Install PyInstaller dependencies
+        RUN apk add --no-cache gcc musl-dev libffi-dev
+        
+        WORKDIR /app
+        COPY pyproject.toml uv.lock README.md LICENSE ./
+        COPY app/ ./app/
+        COPY run.py ./
+        
+        # Set version environment variable
+        ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MUXER=${{ steps.version.outputs.version }}
+        
+        # Install dependencies including dev group
+        RUN uv sync --group dev
+        
+        # Build the binary
+        RUN uv run pyinstaller --onefile \
+            --name muxer-${{ matrix.platform }}-${{ matrix.arch }} \
+            --hidden-import=app \
+            --add-data "app:app" \
+            run.py
+        
+        # Output stage
+        FROM scratch AS output
+        COPY --from=builder /app/dist/muxer-${{ matrix.platform }}-${{ matrix.arch }} /
+        EOF
+        
+        # Build and extract binary
+        docker buildx build \
+          --platform ${{ matrix.docker-platform }} \
+          --target output \
+          --output type=local,dest=./dist \
+          -f Dockerfile.build \
+          .
     
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
       with:
-        name: muxer-linux-x64
-        path: dist/muxer
+        name: muxer-${{ matrix.platform }}-${{ matrix.arch }}
+        path: dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
 
   build-docker:
     needs: test
@@ -153,14 +201,18 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Generated version: $VERSION"
     
-    - name: Download binary artifact
+    - name: Download all binary artifacts
       uses: actions/download-artifact@v4
       with:
-        name: muxer-linux-x64
+        pattern: muxer-*
         path: ./artifacts
+        merge-multiple: true
     
-    - name: Make binary executable
-      run: chmod +x ./artifacts/muxer
+    - name: Make binaries executable
+      run: |
+        chmod +x ./artifacts/muxer-linux-amd64
+        chmod +x ./artifacts/muxer-linux-arm64
+        ls -la ./artifacts/
     
     - name: Generate changelog
       id: changelog
@@ -185,9 +237,17 @@ jobs:
         \`\`\`
         
         ## Binary Usage
+        
+        ### Linux AMD64
         \`\`\`bash
-        ./muxer -i /path/to/video.mkv
-        ./muxer -i /path/to/directory/
+        ./muxer-linux-amd64 -i /path/to/video.mkv
+        ./muxer-linux-amd64 -i /path/to/directory/
+        \`\`\`
+        
+        ### Linux ARM64
+        \`\`\`bash
+        ./muxer-linux-arm64 -i /path/to/video.mkv
+        ./muxer-linux-arm64 -i /path/to/directory/
         \`\`\`
         EOF
     
@@ -197,7 +257,7 @@ jobs:
         tag: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
         bodyFile: CHANGELOG.md
-        artifacts: "./artifacts/muxer"
+        artifacts: "./artifacts/*"
         token: ${{ secrets.GITHUB_TOKEN }}
         draft: false
         prerelease: false 

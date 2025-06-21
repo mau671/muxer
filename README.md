@@ -34,8 +34,25 @@ muxer/
 Download the latest binary from [GitHub Releases](https://github.com/mau671/muxer/releases):
 
 ```bash
-# Download and make executable
-curl -L https://github.com/mau671/muxer/releases/latest/download/muxer -o muxer
+# For Linux AMD64 (Intel/AMD 64-bit)
+curl -L https://github.com/mau671/muxer/releases/latest/download/muxer-linux-amd64 -o muxer
+chmod +x muxer
+
+# For Linux ARM64 (Apple Silicon, Raspberry Pi 4+, etc.)
+curl -L https://github.com/mau671/muxer/releases/latest/download/muxer-linux-arm64 -o muxer
+chmod +x muxer
+
+# Auto-detect architecture (recommended)
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+    BINARY="muxer-linux-amd64"
+elif [ "$ARCH" = "aarch64" ]; then
+    BINARY="muxer-linux-arm64"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+curl -L "https://github.com/mau671/muxer/releases/latest/download/$BINARY" -o muxer
 chmod +x muxer
 ```
 
@@ -70,10 +87,12 @@ cd muxer
 
 ```bash
 # Process a single file
-./muxer -i file.mkv -o processed_file.mkv
+./muxer-linux-amd64 -i file.mkv -o processed_file.mkv
+# or for ARM64
+./muxer-linux-arm64 -i file.mkv -o processed_file.mkv
 
 # Process a directory
-./muxer -i /path/to/directory -o /output/path --delete-after
+./muxer-linux-amd64 -i /path/to/directory -o /output/path --delete-after
 ```
 
 ### Using Docker
