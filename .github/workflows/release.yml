@@ -53,6 +53,7 @@ jobs:
     needs: test
     runs-on: ${{ matrix.runner }}
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 20
     
     strategy:
       matrix:
@@ -76,6 +77,10 @@ jobs:
       uses: docker/setup-qemu-action@v3
       with:
         platforms: arm64
+    
+    - name: Set up Docker Buildx
+      if: matrix.use-emulation
+      uses: docker/setup-buildx-action@v3
     
     - name: Install uv
       uses: astral-sh/setup-uv@v3
@@ -109,27 +114,59 @@ jobs:
     
     - name: Build binary (ARM64 with emulation)
       if: matrix.arch == 'arm64'
+      timeout-minutes: 15
       run: |
-        # Use Docker with emulation for ARM64 build
+        # Create dist directory
+        mkdir -p ./dist
+        
+        # Simple Docker build for ARM64 - no multi-stage
         cat > Dockerfile.arm64 << 'EOF'
         FROM --platform=linux/arm64 python:3.12-alpine
         
+        # Install build dependencies
         RUN apk add --no-cache gcc musl-dev libffi-dev
         
-        WORKDIR /build
+        WORKDIR /app
         COPY . .
         
-        RUN pip install uv
-        RUN uv sync --group dev
-        
+        # Install uv and build (simplified)
+        RUN pip install --no-cache-dir uv
+        RUN uv sync --group dev --no-cache
         RUN uv run pyinstaller --onefile \
             --name muxer-linux-arm64 \
             --hidden-import=app \
             --add-data "app:app" \
+            --strip \
             run.py
+        
+        # Show what was created
+        RUN ls -la dist/ && echo "Binary size:" && du -h dist/muxer-linux-arm64
         EOF
         
-        docker buildx build --platform linux/arm64 -f Dockerfile.arm64 --output type=local,dest=./dist .
+        # Build the image
+        docker build --platform linux/arm64 -f Dockerfile.arm64 -t muxer-arm64-temp .
+        
+        # Extract the binary
+        docker create --name temp-extract muxer-arm64-temp
+        docker cp temp-extract:/app/dist/muxer-linux-arm64 ./dist/muxer-linux-arm64
+        docker rm temp-extract
+        docker rmi muxer-arm64-temp
+        
+        echo "Final binary check:"
+        ls -la ./dist/
+    
+    - name: Verify binary was created
+      run: |
+        echo "Checking for binary at dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}"
+        ls -la dist/
+        if [ -f "dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}" ]; then
+          echo "✅ Binary found!"
+          file dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
+          ls -lah dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
+        else
+          echo "❌ Binary not found!"
+          exit 1
+        fi
     
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
