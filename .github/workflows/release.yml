@@ -112,13 +112,6 @@ jobs:
           --hidden-import=app \
           --add-data "app:app" \
           --strip \
-          --exclude-module tkinter \
-          --exclude-module matplotlib \
-          --exclude-module numpy \
-          --exclude-module pandas \
-          --exclude-module PIL \
-          --exclude-module PyQt5 \
-          --exclude-module PyQt6 \
           --noupx \
           run.py
     

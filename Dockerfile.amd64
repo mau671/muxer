@@ -13,8 +13,8 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files first for better caching
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and README (required by hatchling)
+COPY pyproject.toml uv.lock README.md LICENSE ./
 
 # Install dependencies (this layer will be cached if deps don't change)
 RUN uv sync --group dev --no-cache
@@ -22,7 +22,6 @@ RUN uv sync --group dev --no-cache
 # Copy source code
 COPY app/ ./app/
 COPY run.py ./
-COPY README.md LICENSE ./
 
 # Build the binary
 RUN uv run pyinstaller \
@@ -31,13 +30,6 @@ RUN uv run pyinstaller \
     --hidden-import=app \
     --add-data "app:app" \
     --strip \
-    --exclude-module tkinter \
-    --exclude-module matplotlib \
-    --exclude-module numpy \
-    --exclude-module pandas \
-    --exclude-module PIL \
-    --exclude-module PyQt5 \
-    --exclude-module PyQt6 \
     --noupx \
     run.py
 

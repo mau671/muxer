@@ -13,8 +13,8 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files first for better caching
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and README (required by hatchling)
+COPY pyproject.toml uv.lock README.md LICENSE ./
 
 # Install dependencies (this layer will be cached if deps don't change)
 RUN uv sync --group dev --no-cache
@@ -22,33 +22,15 @@ RUN uv sync --group dev --no-cache
 # Copy source code
 COPY app/ ./app/
 COPY run.py ./
-COPY README.md LICENSE ./
 
-# Build the binary with optimizations for faster build
+# Build the binary
 RUN uv run pyinstaller \
     --onefile \
     --name muxer-linux-arm64 \
     --hidden-import=app \
     --add-data "app:app" \
     --strip \
-    --exclude-module tkinter \
-    --exclude-module matplotlib \
-    --exclude-module numpy \
-    --exclude-module pandas \
-    --exclude-module PIL \
-    --exclude-module PyQt5 \
-    --exclude-module PyQt6 \
-    --exclude-module sqlite3 \
-    --exclude-module unittest \
-    --exclude-module email \
-    --exclude-module html \
-    --exclude-module http \
-    --exclude-module urllib3 \
-    --exclude-module xml \
-    --exclude-module pydoc \
     --noupx \
-    --noconfirm \
-    --clean \
     run.py
 
 # Verify the binary was created and show its size
