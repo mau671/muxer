@@ -7,14 +7,14 @@ on:
 jobs:
   docker-test:
     runs-on: ubuntu-22.04
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
     - name: Build Docker image (test only)
       uses: docker/build-push-action@v5
       with:
@@ -26,5 +26,5 @@ jobs:
         cache-to: type=gha,mode=max
     
     - name: Test Docker image
-      run: |
+        run: |
         docker run --rm muxer:test --help

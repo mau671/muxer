@@ -16,6 +16,9 @@ WORKDIR /app
 # Copy dependency files and README (required by hatchling)
 COPY pyproject.toml uv.lock README.md LICENSE ./
 
+# Create app directory for hatch-vcs version file
+RUN mkdir -p app
+
 # Install dependencies (this layer will be cached if deps don't change)
 RUN uv sync --group dev --no-cache
 
