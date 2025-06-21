@@ -134,9 +134,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
 
         # Check if this is a Latin American Spanish subtitle
         is_latin_subtitle = (
-            lang in ["es-419", "es-MX"] or
-            "lat" in title or
-            "latin american" in title
+            lang in ["es-419", "es-MX"] or "lat" in title or "latin american" in title
         ) and lang != "hi-Latn"
 
         if is_latin_subtitle:
@@ -180,9 +178,9 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
 
             # Skip if already processed as Latin American
             is_latin_subtitle = (
-                lang_code in ["es-419", "es-MX"] or
-                "lat" in title or
-                "latin american" in title
+                lang_code in ["es-419", "es-MX"]
+                or "lat" in title
+                or "latin american" in title
             ) and lang != "hi-Latn"
 
             if lang == "spa" and not is_latin_subtitle:
