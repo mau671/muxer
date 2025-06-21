@@ -27,11 +27,19 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
     
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --group dev
     
-    - name: Check code formatting
-      run: uv run python -m black --check app/
-      continue-on-error: true
+    - name: Lint and format with ruff
+      uses: astral-sh/ruff-action@v3
+      with:
+        src: "./app"
+        args: "check"
+    
+    - name: Check code formatting with ruff
+      uses: astral-sh/ruff-action@v3
+      with:
+        src: "./app"
+        args: "format --check --diff"
     
     - name: Test import
       run: uv run python -c "from app.main import main; print('Import successful')"
@@ -58,10 +66,7 @@ jobs:
       run: uv python install 3.12
     
     - name: Install dependencies
-      run: uv sync
-    
-    - name: Install build dependencies
-      run: uv add --dev pyinstaller
+      run: uv sync --group dev
     
     - name: Build binary
       run: |
@@ -118,6 +123,8 @@ jobs:
         context: .
         platforms: linux/amd64
         push: true
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
         tags: |
           ghcr.io/${{ github.repository_owner }}/muxer:latest
           ghcr.io/${{ github.repository_owner }}/muxer:${{ steps.version.outputs.version }}

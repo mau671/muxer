@@ -1,6 +1,9 @@
 # Base image for Python and UV
 FROM ghcr.io/astral-sh/uv:python3.12-alpine AS runtime
 
+# Accept version as build argument
+ARG VERSION=0.1.0
+
 # Install MKVToolNix and necessary dependencies
 RUN apk add --no-cache \
     mkvtoolnix \
@@ -20,8 +23,11 @@ COPY pyproject.toml uv.lock ./
 COPY app/ ./app/
 COPY run.py ./
 
-# Synchronize the environment with UV
-RUN uv sync --frozen
+# Set version environment variable for hatch-vcs
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MUXER=$VERSION
+
+# Synchronize the environment with UV (without requiring git metadata)
+RUN uv sync --frozen --no-dev
 
 # Configure the PATH to include the virtual environment created by UV
 ENV PATH="/app/.venv/bin:$PATH"

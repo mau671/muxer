@@ -1,10 +1,10 @@
-import subprocess
 import json
+import subprocess
 import sys
-from typing import Dict, Any
+from typing import Any
 
 
-def get_mkv_metadata(input_file: str) -> Dict[str, Any]:
+def get_mkv_metadata(input_file: str) -> dict[str, Any]:
     """
     Retrieves metadata from an MKV file using the mkvmerge tool.
 
@@ -23,4 +23,4 @@ def get_mkv_metadata(input_file: str) -> Dict[str, Any]:
         print(f"Error executing mkvmerge: {result.stderr}")
         sys.exit(1)
     metadata = json.loads(result.stdout)
-    return metadata 
+    return metadata

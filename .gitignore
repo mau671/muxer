@@ -16,5 +16,19 @@ output/
 # Libraries
 lib/
 
-#test files
+# Test files
 data/
+
+# Ruff cache
+.ruff_cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
