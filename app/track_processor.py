@@ -120,7 +120,6 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
                 track["properties"]["default_track"] = False
 
     processed_subtitle_tracks = []
-    default_subtitle_set = False
     found_forced_subtitle = False
     found_latin_subtitles = False
 
@@ -147,7 +146,6 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
                 if "ao" in title:
                     track["properties"]["track_name"] += " [AO]"
                 processed_subtitle_tracks.insert(0, track)
-                default_subtitle_set = True
                 found_forced_subtitle = True
             else:
                 # Complete Latin American subtitles
@@ -222,7 +220,6 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
             # 2. No Spanish audio is present (any variant)
             if not found_forced_subtitle and not default_spa_audio_set:
                 track["properties"]["default_track"] = True
-                default_subtitle_set = True
             else:
                 track["properties"]["default_track"] = False
 
