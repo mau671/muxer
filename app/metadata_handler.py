@@ -17,7 +17,15 @@ def get_mkv_metadata(input_file: str) -> dict[str, Any]:
     Raises:
         SystemExit: If the mkvmerge command fails, the program will exit with an error message.
     """
-    command = ["mkvmerge", "--priority", "normal", "--identify", input_file, "--identification-format", "json"]
+    command = [
+        "mkvmerge",
+        "--priority",
+        "normal",
+        "--identify",
+        input_file,
+        "--identification-format",
+        "json",
+    ]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"Error executing mkvmerge: {result.stderr}")
