@@ -219,7 +219,11 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
             # 1. No forced subtitles were found AND
             # 2. No Spanish audio is present (any variant) AND
             # 3. No Latin American subtitles were found
-            if not found_forced_subtitle and not default_spa_audio_set and not found_latin_subtitles:
+            if (
+                not found_forced_subtitle
+                and not default_spa_audio_set
+                and not found_latin_subtitles
+            ):
                 track["properties"]["default_track"] = True
             else:
                 track["properties"]["default_track"] = False
