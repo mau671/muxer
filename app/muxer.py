@@ -96,12 +96,14 @@ def mux_files(input_file: str, output_file: str, tracks: list[dict[str, Any]]) -
     # Build mkvmerge command
     command = [
         "mkvmerge",
+        "--priority",
+        "highest",
         "--ui-language",
         "en_US",
         "-v",
         "-o",
         output_file,
-    ]  # Added --ui-language for English output
+    ]
     track_order = []
     subtitle_tracks = []
     audio_tracks = []
