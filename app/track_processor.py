@@ -96,7 +96,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
         elif lang == "chi":
             track["properties"]["language_ietf"] = "zh-CN"
             track["properties"]["track_name"] = "Chinese"
-            if not default_audio_set or not default_spa_audio_set:
+            if not default_audio_set and not default_spa_audio_set:
                 track["properties"]["default_track"] = True
                 default_audio_set = True
             else:
@@ -104,7 +104,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
             processed_audio_tracks.append(track)
         elif lang == "kor":
             track["properties"]["track_name"] = "Korean"
-            if not default_spa_audio_set or not default_audio_set:
+            if not default_spa_audio_set and not default_audio_set:
                 track["properties"]["default_track"] = True
                 default_audio_set = True
             else:
