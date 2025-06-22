@@ -51,7 +51,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
             "language_ietf", track["properties"].get("language")
         )
         title = track["properties"].get("track_name", "").lower()
-        if lang == "es-419" or "lat" in title:
+        if lang == "es-419" or ("lat" in title and lang not in ["hi-Latn", "sr-Latn"]):
             track["properties"]["track_name"] = "Spanish (Latin America)"
             track["properties"]["language_ietf"] = "es-419"
             track["properties"]["default_track"] = True
@@ -134,7 +134,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
         # Check if this is a Latin American Spanish subtitle
         is_latin_subtitle = (
             lang in ["es-419", "es-MX"] or "lat" in title or "latin american" in title
-        ) and lang != "hi-Latn"
+        ) and lang not in ["hi-Latn", "sr-Latn"]
 
         if is_latin_subtitle:
             found_latin_subtitles = True
@@ -179,7 +179,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
                 lang_code in ["es-419", "es-MX"]
                 or "lat" in title
                 or "latin american" in title
-            ) and lang != "hi-Latn"
+            ) and lang not in ["hi-Latn", "sr-Latn"]
 
             if lang == "spa" and not is_latin_subtitle:
                 # Determine if this is Spain Spanish or generic Spanish
