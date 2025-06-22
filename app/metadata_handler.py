@@ -19,8 +19,6 @@ def get_mkv_metadata(input_file: str) -> dict[str, Any]:
     """
     command = [
         "mkvmerge",
-        "--priority",
-        "normal",
         "--identify",
         input_file,
         "--identification-format",
