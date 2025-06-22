@@ -151,8 +151,8 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
                 # Complete Latin American subtitles
                 track["properties"]["track_name"] = "Spanish (Latin America)"
                 track["properties"]["language_ietf"] = "es-419"
-                # Don't set as default if there's already Latin American audio
-                track["properties"]["default_track"] = False
+                # Set as default if there's no Spanish audio (prioritize over English)
+                track["properties"]["default_track"] = not default_spa_audio_set
                 if "ao" in title:
                     track["properties"]["track_name"] += " [AO]"
                 if "sdh" in title:
@@ -217,8 +217,9 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
 
             # Only set English as default if:
             # 1. No forced subtitles were found AND
-            # 2. No Spanish audio is present (any variant)
-            if not found_forced_subtitle and not default_spa_audio_set:
+            # 2. No Spanish audio is present (any variant) AND
+            # 3. No Latin American subtitles were found
+            if not found_forced_subtitle and not default_spa_audio_set and not found_latin_subtitles:
                 track["properties"]["default_track"] = True
             else:
                 track["properties"]["default_track"] = False
