@@ -151,6 +151,7 @@ def _execute_with_progress(command: list[str], output_file: str) -> None:
     track_pattern = re.compile(r"track \d+:")
 
     start_time = time.time()
+    all_output = []  # Store all output for error reporting
 
     with Progress(
         SpinnerColumn(),
@@ -180,6 +181,7 @@ def _execute_with_progress(command: list[str], output_file: str) -> None:
 
             if output:
                 line = output.strip()
+                all_output.append(line)  # Store all output
 
                 # Check for progress updates
                 progress_match = progress_pattern.search(line)
@@ -208,9 +210,20 @@ def _execute_with_progress(command: list[str], output_file: str) -> None:
         total_time = time.time() - start_time
 
         if return_code != 0:
+            # Show detailed error information
             console.print(
                 f"[red]❌ Error executing mkvmerge with return code {return_code}[/red]"
             )
+            console.print("[red]Error output:[/red]")
+            
+            # Show the last lines of output which usually contain the error
+            error_lines = [line for line in all_output if line.strip()]
+            if error_lines:
+                for line in error_lines[-10:]:  # Show last 10 non-empty lines
+                    console.print(f"[dim red]{line}[/dim red]")
+            else:
+                console.print("[dim red]No error output captured[/dim red]")
+            
             sys.exit(1)
 
         # Success message
