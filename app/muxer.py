@@ -215,7 +215,7 @@ def _execute_with_progress(command: list[str], output_file: str) -> None:
                 f"[red]❌ Error executing mkvmerge with return code {return_code}[/red]"
             )
             console.print("[red]Error output:[/red]")
-            
+
             # Show the last lines of output which usually contain the error
             error_lines = [line for line in all_output if line.strip()]
             if error_lines:
@@ -223,7 +223,7 @@ def _execute_with_progress(command: list[str], output_file: str) -> None:
                     console.print(f"[dim red]{line}[/dim red]")
             else:
                 console.print("[dim red]No error output captured[/dim red]")
-            
+
             sys.exit(1)
 
         # Success message
