@@ -72,6 +72,11 @@ def main():
         if output_path == input_path:
             base_name = os.path.splitext(input_path)[0]
             output_path = f"{base_name}_muxed.mkv"
+        # If output is a directory, construct the full output file path
+        elif os.path.isdir(output_path):
+            input_filename = os.path.basename(input_path)
+            base_name = os.path.splitext(input_filename)[0]
+            output_path = os.path.join(output_path, f"{base_name}_muxed.mkv")
 
         mux_files(input_path, output_path, processed_tracks)
 
