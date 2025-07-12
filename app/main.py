@@ -80,6 +80,11 @@ def main():
 
         mux_files(input_path, output_path, processed_tracks)
 
+        if args.delete_after:
+            os.remove(input_path)
+            input_filename = os.path.basename(input_path)
+            console.print(f"[red]🗑️  Deleted original file: {input_filename}[/red]")
+
     # Show completion message
     console.print("\n" + "=" * 50)
     console.print("[green]🎉 All processing completed successfully![/green]")
