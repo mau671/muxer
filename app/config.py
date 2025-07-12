@@ -24,7 +24,7 @@ LANGUAGE_CONFIGS = {
 
 # Track processing patterns
 SUBTITLE_PATTERNS = {
-    "forced": ["forced"],
+    "forced": ["forced", "forzad"],
     "sdh": ["sdh"],
     "cc": ["cc"],
     "dubtitle": ["dub"],
