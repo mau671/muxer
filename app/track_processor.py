@@ -140,7 +140,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
 
         if is_latin_subtitle:
             found_latin_subtitles = True
-            if "forced" in title or "forzad" in title or forced:
+            if "forced" in title or "forzad" in title or "signs" in title or forced:
                 track["properties"]["track_name"] = "Spanish (Latin America) [Forced]"
                 track["properties"]["forced_track"] = True
                 track["properties"]["default_track"] = True
@@ -194,7 +194,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
                 # Don't set as default if there's already Spanish audio (any variant)
                 track["properties"]["default_track"] = False
 
-                if "forced" in title or "forzad" in title or forced:
+                if "forced" in title or "forzad" in title or "signs" in title or forced:
                     track["properties"]["track_name"] += " [Forced]"
                     track["properties"]["forced_track"] = True
                 if "sdh" in title:
@@ -211,7 +211,7 @@ def process_tracks(metadata: dict[str, Any]) -> list[dict[str, Any]]:
         forced = track["properties"].get("forced_track", False)
         title = track["properties"].get("track_name", "").lower()
         if lang == "eng":
-            if "forced" in title or "forzad" in title or forced:
+            if "forced" in title or "forzad" in title or "signs" in title or forced:
                 track["properties"]["track_name"] = "English [Forced]"
                 track["properties"]["forced_track"] = True
             else:
