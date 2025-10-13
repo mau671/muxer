@@ -125,6 +125,11 @@ def mux_files(input_file: str, output_file: str, tracks: list[dict[str, Any]]) -
         command.extend(["--language", f"{track_id}:{lang}"])
         command.extend(["--default-track", f"{track_id}:{default}"])
 
+        # Set forced track flag for subtitles
+        if track["type"] == "subtitles":
+            forced = "yes" if track["properties"].get("forced_track", False) else "no"
+            command.extend(["--forced-track", f"{track_id}:{forced}"])
+
         # Always set track name (empty string will remove the title)
         command.extend(["--track-name", f"{track_id}:{title}"])
 
