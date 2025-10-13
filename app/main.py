@@ -44,6 +44,9 @@ def main():
 
         console.print(f"[blue]📁 Found {len(files)} file(s) to process[/blue]\n")
 
+        # Create output directory if it doesn't exist
+        os.makedirs(output_path, exist_ok=True)
+
         for i, file in enumerate(files, 1):
             console.print(f"[bold]Processing file {i}/{len(files)}[/bold]")
 
@@ -72,11 +75,19 @@ def main():
         if output_path == input_path:
             base_name = os.path.splitext(input_path)[0]
             output_path = f"{base_name}_muxed.mkv"
-        # If output is a directory, construct the full output file path
-        elif os.path.isdir(output_path):
+        # If output is a directory (or path ends with /), construct the full output file path
+        elif os.path.isdir(output_path) or output_path.endswith("/"):
+            # Create directory if it doesn't exist
+            os.makedirs(output_path, exist_ok=True)
+
             input_filename = os.path.basename(input_path)
             base_name = os.path.splitext(input_filename)[0]
             output_path = os.path.join(output_path, f"{base_name}_muxed.mkv")
+        else:
+            # If output is a file path, ensure the parent directory exists
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
 
         mux_files(input_path, output_path, processed_tracks)
 
