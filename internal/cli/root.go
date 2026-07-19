@@ -23,12 +23,14 @@ var (
 	inputPath   string
 	outputPath  string
 	deleteAfter bool
+	Version     = "dev"
 )
 
 func init() {
 	rootCmd.Flags().StringVarP(&inputPath, "input", "i", "", "Input file or directory (required)")
 	rootCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file or directory (optional)")
 	rootCmd.Flags().BoolVar(&deleteAfter, "delete-after", false, "Delete source files after processing")
+	rootCmd.Version = Version
 	rootCmd.MarkFlagRequired("input")
 }
 

@@ -1,297 +1,32 @@
-name: Build and Release
+name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for manual execution'
-        required: false
-        default: 'Manual execution'
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-    
+  goreleaser:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Full history for versioning
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: uv sync --group dev
-    
-    - name: Lint and format with ruff
-      uses: astral-sh/ruff-action@v3
-      with:
-        src: "./app"
-        version-file: "./pyproject.toml"
-        args: "check"
-    
-    - name: Check code formatting with ruff
-      uses: astral-sh/ruff-action@v3
-      with:
-        src: "./app"
-        version-file: "./pyproject.toml"
-        args: "format --check --diff"
-    
-    - name: Test import
-      run: uv run python -c "from app.main import main; print('Import successful')"
-    
-    - name: Test CLI
-      run: uv run python run.py --help
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  build-binary:
-    needs: test
-    runs-on: ${{ matrix.runner }}
-    if: github.ref == 'refs/heads/main'
-    timeout-minutes: 20
-    
-    strategy:
-      matrix:
-        include:
-          - runner: ubuntu-22.04
-            platform: linux
-            arch: amd64
-          - runner: ubuntu-22.04
-            platform: linux
-            arch: arm64
-            use-emulation: true
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    # Setup emulation for ARM64
-    - name: Set up QEMU
-      if: matrix.use-emulation
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
-    
-    - name: Set up Docker Buildx
-      if: matrix.use-emulation
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
-    
-    - name: Set up Python
-      run: uv python install 3.12
-    
-    - name: Install dependencies
-      run: uv sync --group dev
-    
-    - name: Generate version
-      id: version
-      run: |
-        # Use commit count for version
-        COUNT=$(git rev-list --count HEAD)
-        HASH=$(git rev-parse --short HEAD)
-        VERSION="1.0.${COUNT}"
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Generated version: $VERSION"
-    
-    - name: Build binary (AMD64)
-      if: matrix.arch == 'amd64'
-      run: |
-        # Use native build for AMD64 (much faster)
-        uv run pyinstaller --onefile \
-          --name muxer-${{ matrix.platform }}-${{ matrix.arch }} \
-          --hidden-import=app \
-          --add-data "app:app" \
-          --strip \
-          --noupx \
-          run.py
-    
-    - name: Build binary (ARM64 with emulation)
-      if: matrix.arch == 'arm64'
-      timeout-minutes: 12
-      run: |
-        # Create dist directory
-        mkdir -p ./dist
-        
-        # Build using dedicated Dockerfile with buildx for proper platform handling
-        docker buildx build \
-          --platform linux/arm64 \
-          --file Dockerfile.arm64 \
-          --tag muxer-arm64-temp \
-          --load \
-          .
-        
-        # Extract the binary using docker cp
-        docker create --name temp-extract muxer-arm64-temp
-        docker cp temp-extract:/app/dist/muxer-linux-arm64 ./dist/muxer-linux-arm64
-        docker rm temp-extract
-        docker rmi muxer-arm64-temp
-        
-        echo "Final binary verification:"
-        ls -la ./dist/
-        file ./dist/muxer-linux-arm64
-    
-    - name: Verify binary was created
-      run: |
-        echo "Checking for binary at dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}"
-        ls -la dist/
-        if [ -f "dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}" ]; then
-          echo "✅ Binary found!"
-          file dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
-          ls -lah dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
-        else
-          echo "❌ Binary not found!"
-          exit 1
-        fi
-    
-    - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: muxer-${{ matrix.platform }}-${{ matrix.arch }}
-        path: dist/muxer-${{ matrix.platform }}-${{ matrix.arch }}
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
 
-  build-docker:
-    needs: test
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    
-    permissions:
-      contents: read
-      packages: write
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Generate version
-      id: version
-      run: |
-        # Use commit count for version
-        COUNT=$(git rev-list --count HEAD)
-        HASH=$(git rev-parse --short HEAD)
-        VERSION="1.0.${COUNT}"
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Generated version: $VERSION"
-    
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64
-        push: true
-        build-args: |
-          VERSION=${{ steps.version.outputs.version }}
-        tags: |
-          ghcr.io/${{ github.repository_owner }}/muxer:latest
-          ghcr.io/${{ github.repository_owner }}/muxer:${{ steps.version.outputs.version }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-  create-release:
-    needs: [test, build-binary, build-docker]
-    runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/main'
-    
-    permissions:
-      contents: write
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Generate version
-      id: version
-      run: |
-        # Use commit count for version
-        COUNT=$(git rev-list --count HEAD)
-        HASH=$(git rev-parse --short HEAD)
-        VERSION="1.0.${COUNT}"
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Generated version: $VERSION"
-    
-    - name: Download all binary artifacts
-      uses: actions/download-artifact@v4
-      with:
-        pattern: muxer-*
-        path: ./artifacts
-        merge-multiple: true
-    
-    - name: Make binaries executable
-      run: |
-        chmod +x ./artifacts/muxer-linux-amd64 2>/dev/null || true
-        chmod +x ./artifacts/muxer-linux-arm64 2>/dev/null || true
-        ls -la ./artifacts/
-    
-    - name: Generate changelog
-      id: changelog
-      run: |
-        # Get commits since last tag or from beginning
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        if [ -z "$LAST_TAG" ]; then
-          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -10)
-        else
-          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-        fi
-        
-        # Create changelog
-        cat > CHANGELOG.md << EOF
-        ## Changes in ${{ steps.version.outputs.version }}
-        
-        $COMMITS
-        
-        ## Docker Image
-        \`\`\`bash
-        docker pull ghcr.io/${{ github.repository_owner }}/muxer:${{ steps.version.outputs.version }}
-        \`\`\`
-        
-        ## Binary Usage
-        
-        ### Linux AMD64
-        \`\`\`bash
-        ./muxer-linux-amd64 -i /path/to/video.mkv
-        ./muxer-linux-amd64 -i /path/to/directory/
-        \`\`\`
-        
-        ### Linux ARM64
-        \`\`\`bash
-        ./muxer-linux-arm64 -i /path/to/video.mkv
-        ./muxer-linux-arm64 -i /path/to/directory/
-        \`\`\`
-        EOF
-    
-    - name: Create Release
-      uses: ncipollo/release-action@v1
-      with:
-        tag: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
-        bodyFile: CHANGELOG.md
-        artifacts: "./artifacts/*"
-        token: ${{ secrets.GITHUB_TOKEN }}
-        draft: false
-        prerelease: false 
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
