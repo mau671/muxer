@@ -18,13 +18,19 @@ func DownloadMkvmerge() error {
 
 	var ext string
 	if runtime.GOOS == "windows" {
+		if runtime.GOARCH == "arm64" {
+			return fmt.Errorf("auto-download not supported for Windows ARM64. Please install MKVToolNix manually")
+		}
 		url = "https://github.com/Jesseatgao/MKVToolNix-static-builds/releases/download/v58.0.0-mingw-w64-posixv1.8el9/mkvtoolnix-x86_64-win.zip"
 		ext = "*.zip"
 	} else if runtime.GOOS == "linux" {
+		if runtime.GOARCH == "arm64" || runtime.GOARCH == "aarch64" {
+			return fmt.Errorf("auto-download not supported for Linux ARM64 (like Oracle Cloud). Please run: sudo apt install mkvtoolnix")
+		}
 		url = "https://github.com/Jesseatgao/MKVToolNix-static-builds/releases/download/v58.0.0-mingw-w64-posixv1.8el9/mkvtoolnix-x86_64-linux.tar.xz"
 		ext = "*.tar.xz"
 	} else {
-		return fmt.Errorf("auto-download not supported for %s", runtime.GOOS)
+		return fmt.Errorf("auto-download not supported for %s %s. Please install MKVToolNix manually", runtime.GOOS, runtime.GOARCH)
 	}
 
 	cacheDir, err := config.GetCacheDir()

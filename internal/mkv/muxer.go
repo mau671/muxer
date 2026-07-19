@@ -104,10 +104,20 @@ func RunMuxer(binPath string, args []string, progressChan chan<- int, msgChan ch
 		return err
 	}
 	
+	var lastLines []string
+
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		line := scanner.Text()
-		
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		if len(lastLines) > 5 {
+			lastLines = lastLines[1:]
+		}
+		lastLines = append(lastLines, line)
+
 		if match := progressRegex.FindStringSubmatch(line); match != nil {
 			percent, _ := strconv.Atoi(match[1])
 			progressChan <- percent
@@ -120,5 +130,12 @@ func RunMuxer(binPath string, args []string, progressChan chan<- int, msgChan ch
 		}
 	}
 	
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		if len(lastLines) > 0 {
+			return fmt.Errorf("mkvmerge failed: %s", strings.Join(lastLines, " | "))
+		}
+		return err
+	}
+	return nil
 }

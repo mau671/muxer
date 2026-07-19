@@ -2,6 +2,7 @@ package mkv
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 
 	"github.com/mau671/muxer/internal/processor"
@@ -12,6 +13,9 @@ func GetMetadata(binPath, filePath string) (processor.Metadata, error) {
 	cmd := exec.Command(binPath, "--identify", filePath, "--identification-format", "json")
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return processor.Metadata{}, fmt.Errorf("mkvmerge failed (exit %d): %s", exitErr.ExitCode(), string(exitErr.Stderr))
+		}
 		return processor.Metadata{}, err
 	}
 
