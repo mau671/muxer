@@ -251,6 +251,9 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 					track.Properties.TrackName += " [Forced]"
 					track.Properties.ForcedTrack = true
 				}
+				if strings.Contains(title, "sdh") || strings.Contains(title, "cc") {
+					track.Properties.HearingImpaired = true
+				}
 				if strings.Contains(title, "sdh") {
 					track.Properties.TrackName += " [SDH]"
 				}

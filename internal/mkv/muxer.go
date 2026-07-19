@@ -61,6 +61,17 @@ func BuildCommand(inputPath, outputPath string, tracks []processor.Track) []stri
 		}
 
 		args = append(args, "--track-name", trackID+":"+track.Properties.TrackName)
+
+		if track.Properties.OriginalTrack {
+			args = append(args, "--original-flag", trackID+":yes")
+		}
+		if track.Properties.HearingImpaired {
+			args = append(args, "--hearing-impaired-flag", trackID+":yes")
+		}
+		if track.Properties.VisualImpaired {
+			args = append(args, "--visual-impaired-flag", trackID+":yes")
+		}
+
 		trackOrder = append(trackOrder, "0:"+trackID)
 	}
 
