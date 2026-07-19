@@ -219,15 +219,15 @@ func processSingleFile(in, out string) {
 			return
 		}
 
+		if deleteAfter {
+			os.Remove(in)
+		}
+
 		p.Send(ui.DoneMsg{})
 	}()
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("UI Error: %v\n", err)
 		os.Exit(1)
-	}
-
-	if deleteAfter {
-		os.Remove(in)
 	}
 }
