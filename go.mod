@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creativeprojects/go-selfupdate v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/spf13/cobra v1.10.2
 )

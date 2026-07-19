@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/mau671/muxer/internal/mkv"
 	"github.com/mau671/muxer/internal/processor"
@@ -38,6 +39,9 @@ func init() {
 }
 
 func Execute() {
+	// Intentar cargar variables desde .env (opcional)
+	_ = godotenv.Load()
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
