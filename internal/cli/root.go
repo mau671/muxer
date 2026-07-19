@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -66,26 +67,36 @@ func processDirectory(inDir, outDir string) {
 	if outDir == "" {
 		outDir = inDir
 	}
-	
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		fmt.Printf("Error creating output directory: %v\n", err)
-		os.Exit(1)
-	}
-
-	entries, err := os.ReadDir(inDir)
-	if err != nil {
-		fmt.Printf("Error reading directory: %v\n", err)
-		os.Exit(1)
-	}
 
 	foundMkv := false
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".mkv") {
-			foundMkv = true
-			inPath := filepath.Join(inDir, entry.Name())
-			outPath := filepath.Join(outDir, strings.TrimSuffix(entry.Name(), ".mkv")+"_processed.mkv")
-			processSingleFile(inPath, outPath)
+	err := filepath.WalkDir(inDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".mkv") {
+			foundMkv = true
+
+			// Create relative path for output
+			relPath, err := filepath.Rel(inDir, path)
+			if err != nil {
+				return err
+			}
+
+			outPath := filepath.Join(outDir, strings.TrimSuffix(relPath, ".mkv")+"_processed.mkv")
+
+			// Ensure target directory exists
+			if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+				return err
+			}
+
+			processSingleFile(path, outPath)
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("Error walking directory: %v\n", err)
+		os.Exit(1)
 	}
 
 	if !foundMkv {
@@ -125,27 +136,27 @@ func processSingleFile(in, out string) {
 				return
 			}
 
-			// Extract ID from filename, e.g., [tvdbid-12345] or [tmdbid-67890]
-			filename := filepath.Base(in)
-			startIdx := strings.Index(filename, "[")
-			endIdx := strings.Index(filename, "]")
+			// Extract ID from full path, e.g., [tvdbid-12345] or [tmdbid-67890]
+			idRegex := regexp.MustCompile(`\[(tvdbid-[0-9]+|tmdbid-[0-9]+)\]`)
+			match := idRegex.FindString(in)
 			
-			if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
-				idTag := filename[startIdx+1 : endIdx]
-				if strings.HasPrefix(idTag, "tvdbid-") || strings.HasPrefix(idTag, "tmdbid-") {
-					p.Send(ui.InfoMsg(fmt.Sprintf("Querying TMDB for %s...", idTag)))
-					
-					tmdbClient, err := processor.NewTMDBClient(apiKey)
+			if match != "" {
+				// match is like "[tvdbid-12345]"
+				idTag := match[1 : len(match)-1] // remove brackets
+				p.Send(ui.InfoMsg(fmt.Sprintf("Querying TMDB for %s...", idTag)))
+				
+				tmdbClient, err := processor.NewTMDBClient(apiKey)
+				if err == nil {
+					lang, err := tmdbClient.GetOriginalLanguage(idTag)
 					if err == nil {
-						lang, err := tmdbClient.GetOriginalLanguage(idTag)
-						if err == nil {
-							originalLang = lang
-							p.Send(ui.InfoMsg(fmt.Sprintf("Detected Original Language: %s", lang)))
-						} else {
-							p.Send(ui.InfoMsg(fmt.Sprintf("Warning: API failed: %v", err)))
-						}
+						originalLang = lang
+						p.Send(ui.InfoMsg(fmt.Sprintf("Detected Original Language: %s", lang)))
+					} else {
+						p.Send(ui.InfoMsg(fmt.Sprintf("Warning: API failed: %v", err)))
 					}
 				}
+			} else {
+				p.Send(ui.InfoMsg("No TMDB/TVDB ID found in path. Skipping original language detection."))
 			}
 		}
 
