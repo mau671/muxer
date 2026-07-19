@@ -179,6 +179,7 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 	var processedSubtitleTracks []Track
 	foundForcedSubtitle := false
 	foundLatinSubtitles := false
+	foundGenericSpaSubtitles := false
 
 	// Subtitles pass 1: Latin American
 	for _, track := range subtitleTracks {
@@ -245,12 +246,28 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 				} else {
 					track.Properties.TrackName = "Spanish"
 				}
-				track.Properties.DefaultTrack = false
 
 				if strings.Contains(title, "forced") || strings.Contains(title, "forzad") || strings.Contains(title, "signs") || forced {
 					track.Properties.TrackName += " [Forced]"
 					track.Properties.ForcedTrack = true
+					// Generic/Spain forced subs should be default if there is no Latin forced sub
+					if !foundForcedSubtitle {
+						track.Properties.DefaultTrack = true
+						foundForcedSubtitle = true
+					} else {
+						track.Properties.DefaultTrack = false
+					}
+					foundGenericSpaSubtitles = true
+				} else {
+					// Complete Generic/Spain subs should be default only if no Spanish audio and no forced subs exist
+					if !defaultSpaAudioSet && !foundForcedSubtitle {
+						track.Properties.DefaultTrack = true
+					} else {
+						track.Properties.DefaultTrack = false
+					}
+					foundGenericSpaSubtitles = true
 				}
+
 				if strings.Contains(title, "sdh") || strings.Contains(title, "cc") {
 					track.Properties.HearingImpaired = true
 				}
@@ -282,7 +299,7 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 				track.Properties.TrackName = "English"
 			}
 
-			if !foundForcedSubtitle && !defaultSpaAudioSet && !foundLatinSubtitles {
+			if !foundForcedSubtitle && !defaultSpaAudioSet && !foundLatinSubtitles && !foundGenericSpaSubtitles {
 				track.Properties.DefaultTrack = true
 			} else {
 				track.Properties.DefaultTrack = false
