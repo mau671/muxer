@@ -4,8 +4,34 @@ import (
 	"strings"
 )
 
+// ISO 639-1 (TMDB) to ISO 639-2 (MKV) mapping
+var isoMap = map[string]string{
+	"en": "eng", "ja": "jpn", "ko": "kor", "zh": "chi", "es": "spa",
+	"fr": "fre", "de": "ger", "it": "ita", "pt": "por", "ru": "rus",
+}
+
+// matchLanguage checks if the track matches the TMDB original language
+func matchLanguage(track Track, tmdbLang string) bool {
+	if tmdbLang == "" {
+		return false
+	}
+	
+	// Check IETF (usually 2 letters like "ja" or "es-419")
+	if strings.HasPrefix(strings.ToLower(track.Properties.LanguageIETF), tmdbLang) {
+		return true
+	}
+	
+	// Check 3-letter MKV legacy code
+	if mkvLang, ok := isoMap[tmdbLang]; ok {
+		if track.Properties.Language == mkvLang {
+			return true
+		}
+	}
+	return false
+}
+
 // ProcessTracks processes the tracks according to business rules.
-func ProcessTracks(metadata Metadata) []Track {
+func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string) []Track {
 	var videoTracks []Track
 	var audioTracks []Track
 	var subtitleTracks []Track
@@ -24,6 +50,39 @@ func ProcessTracks(metadata Metadata) []Track {
 	var processedAudioTracks []Track
 	defaultSpaAudioSet := false
 	defaultAudioSet := false
+
+	// If originalOnly is active and we have an original language, pre-filter non-Spanish and non-original tracks
+	var filteredAudioTracks []Track
+	if originalOnly && originalLanguage != "" {
+		for _, track := range audioTracks {
+			lang := track.Properties.Language
+			langIETF := track.Properties.LanguageIETF
+			if langIETF == "" {
+				langIETF = lang
+			}
+
+			// Keep if it's Spanish (any variant) OR if it matches original language
+			if strings.HasPrefix(langIETF, "es") || lang == "spa" || matchLanguage(track, originalLanguage) {
+				filteredAudioTracks = append(filteredAudioTracks, track)
+			}
+		}
+		audioTracks = filteredAudioTracks
+
+		var filteredSubtitleTracks []Track
+		for _, track := range subtitleTracks {
+			lang := track.Properties.Language
+			langIETF := track.Properties.LanguageIETF
+			if langIETF == "" {
+				langIETF = lang
+			}
+
+			// Keep if it's Spanish (any variant) OR if it matches original language OR if it's English (as a safe fallback for subs)
+			if strings.HasPrefix(langIETF, "es") || lang == "spa" || lang == "eng" || strings.HasPrefix(langIETF, "en") || matchLanguage(track, originalLanguage) {
+				filteredSubtitleTracks = append(filteredSubtitleTracks, track)
+			}
+		}
+		subtitleTracks = filteredSubtitleTracks
+	}
 
 	// First pass for audio: Latin American Spanish
 	for _, track := range audioTracks {

@@ -23,13 +23,15 @@ var (
 	inputPath   string
 	outputPath  string
 	deleteAfter bool
-	Version     = "dev"
+	originalOnly bool
+	Version      = "dev"
 )
 
 func init() {
 	rootCmd.Flags().StringVarP(&inputPath, "input", "i", "", "Input file or directory (required)")
 	rootCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file or directory (optional)")
 	rootCmd.Flags().BoolVar(&deleteAfter, "delete-after", false, "Delete source files after processing")
+	rootCmd.Flags().BoolVar(&originalOnly, "original-only", false, "Keep only original language and Spanish tracks (requires TMDB_API_KEY env var)")
 	rootCmd.Version = strings.TrimPrefix(Version, "v") // Remove "v" if present
 	rootCmd.SetVersionTemplate("{{printf \"%s\\n\" .Version}}")
 	rootCmd.MarkFlagRequired("input")
@@ -111,7 +113,39 @@ func processSingleFile(in, out string) {
 			return
 		}
 
-		processedTracks := processor.ProcessTracks(metadata)
+		originalLang := ""
+		if originalOnly {
+			apiKey := os.Getenv("TMDB_API_KEY")
+			if apiKey == "" {
+				p.Send(ui.ErrorMsg{Err: fmt.Errorf("TMDB_API_KEY environment variable is missing")})
+				return
+			}
+
+			// Extract ID from filename, e.g., [tvdbid-12345] or [tmdbid-67890]
+			filename := filepath.Base(in)
+			startIdx := strings.Index(filename, "[")
+			endIdx := strings.Index(filename, "]")
+			
+			if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
+				idTag := filename[startIdx+1 : endIdx]
+				if strings.HasPrefix(idTag, "tvdbid-") || strings.HasPrefix(idTag, "tmdbid-") {
+					p.Send(ui.InfoMsg(fmt.Sprintf("Querying TMDB for %s...", idTag)))
+					
+					tmdbClient, err := processor.NewTMDBClient(apiKey)
+					if err == nil {
+						lang, err := tmdbClient.GetOriginalLanguage(idTag)
+						if err == nil {
+							originalLang = lang
+							p.Send(ui.InfoMsg(fmt.Sprintf("Detected Original Language: %s", lang)))
+						} else {
+							p.Send(ui.InfoMsg(fmt.Sprintf("Warning: API failed: %v", err)))
+						}
+					}
+				}
+			}
+		}
+
+		processedTracks := processor.ProcessTracks(metadata, originalOnly, originalLang)
 		
 		p.Send(ui.MetadataMsg{
 			OutFilename: out,

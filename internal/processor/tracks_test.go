@@ -12,7 +12,7 @@ func TestProcessTracks_LatinAmericanSpanish(t *testing.T) {
 			{ID: 2, Type: "subtitles", Properties: TrackProperties{TrackName: "Forced", LanguageIETF: "es-419", ForcedTrack: true}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	
 	if res[1].Properties.TrackName != "Spanish (Latin America)" || !res[1].Properties.DefaultTrack {
 		t.Errorf("Audio es-419 should be Latin America and default")
@@ -29,7 +29,7 @@ func TestProcessTracks_SpainSpanishFallback(t *testing.T) {
 			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "spa", LanguageIETF: "es-ES", ForcedTrack: true}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	
 	if res[0].Properties.TrackName != "Spanish (Spain)" || !res[0].Properties.DefaultTrack {
 		t.Errorf("Audio es-ES should be Spain and default")
@@ -46,7 +46,7 @@ func TestProcessTracks_EnglishFallback(t *testing.T) {
 			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "eng"}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	
 	if res[0].Properties.TrackName != "English" || !res[0].Properties.DefaultTrack {
 		t.Errorf("Audio eng should be default if no spanish")
@@ -63,7 +63,7 @@ func TestProcessTracks_JapaneseAudio(t *testing.T) {
 			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "eng", TrackName: "Signs", ForcedTrack: true}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	
 	if res[0].Properties.TrackName != "Japanese" || !res[0].Properties.DefaultTrack {
 		t.Errorf("Japanese should be default if no spanish")
@@ -79,7 +79,7 @@ func TestProcessTracks_VideoTrackCleared(t *testing.T) {
 			{ID: 0, Type: "video", Properties: TrackProperties{TrackName: "Some Scene Release"}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	if res[0].Properties.TrackName != "" {
 		t.Errorf("Video track name should be cleared")
 	}
@@ -92,7 +92,7 @@ func TestProcessTracks_AsianLanguages(t *testing.T) {
 			{ID: 2, Type: "audio", Properties: TrackProperties{Language: "kor"}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	if res[0].Properties.TrackName != "Chinese" || !res[0].Properties.DefaultTrack {
 		t.Errorf("Chinese should be default if first")
 	}
@@ -109,7 +109,7 @@ func TestProcessTracks_MultipleAudioPriorities(t *testing.T) {
 			{ID: 3, Type: "audio", Properties: TrackProperties{Language: "eng"}},
 		},
 	}
-	res := ProcessTracks(metadata)
+	res := ProcessTracks(metadata, false, "")
 	
 	// Track 1 should be Latin American (moved to first matched loop)
 	if res[0].Properties.TrackName != "Spanish (Latin America)" || !res[0].Properties.DefaultTrack {
