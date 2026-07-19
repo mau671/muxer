@@ -30,7 +30,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&inputPath, "input", "i", "", "Input file or directory (required)")
 	rootCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file or directory (optional)")
 	rootCmd.Flags().BoolVar(&deleteAfter, "delete-after", false, "Delete source files after processing")
-	rootCmd.Version = Version
+	rootCmd.Version = strings.TrimPrefix(Version, "v") // Remove "v" if present
+	rootCmd.SetVersionTemplate("{{printf \"%s\\n\" .Version}}")
 	rootCmd.MarkFlagRequired("input")
 }
 
