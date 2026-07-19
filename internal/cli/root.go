@@ -49,9 +49,40 @@ func runMuxer(cmd *cobra.Command, args []string) {
 	}
 
 	if info.IsDir() {
-		fmt.Println("Directory processing is not fully implemented yet, processing single file...")
+		processDirectory(inputPath, outputPath)
 	} else {
 		processSingleFile(inputPath, outputPath)
+	}
+}
+
+func processDirectory(inDir, outDir string) {
+	if outDir == "" {
+		outDir = inDir
+	}
+	
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		fmt.Printf("Error creating output directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	entries, err := os.ReadDir(inDir)
+	if err != nil {
+		fmt.Printf("Error reading directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	foundMkv := false
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".mkv") {
+			foundMkv = true
+			inPath := filepath.Join(inDir, entry.Name())
+			outPath := filepath.Join(outDir, strings.TrimSuffix(entry.Name(), ".mkv")+"_processed.mkv")
+			processSingleFile(inPath, outPath)
+		}
+	}
+
+	if !foundMkv {
+		fmt.Println("No MKV files found in directory.")
 	}
 }
 

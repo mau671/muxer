@@ -73,6 +73,34 @@ func TestProcessTracks_JapaneseAudio(t *testing.T) {
 	}
 }
 
+func TestProcessTracks_VideoTrackCleared(t *testing.T) {
+	metadata := Metadata{
+		Tracks: []Track{
+			{ID: 0, Type: "video", Properties: TrackProperties{TrackName: "Some Scene Release"}},
+		},
+	}
+	res := ProcessTracks(metadata)
+	if res[0].Properties.TrackName != "" {
+		t.Errorf("Video track name should be cleared")
+	}
+}
+
+func TestProcessTracks_AsianLanguages(t *testing.T) {
+	metadata := Metadata{
+		Tracks: []Track{
+			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "chi"}},
+			{ID: 2, Type: "audio", Properties: TrackProperties{Language: "kor"}},
+		},
+	}
+	res := ProcessTracks(metadata)
+	if res[0].Properties.TrackName != "Chinese" || !res[0].Properties.DefaultTrack {
+		t.Errorf("Chinese should be default if first")
+	}
+	if res[1].Properties.TrackName != "Korean" || res[1].Properties.DefaultTrack {
+		t.Errorf("Korean should not be default if Chinese already took it")
+	}
+}
+
 func TestProcessTracks_MultipleAudioPriorities(t *testing.T) {
 	metadata := Metadata{
 		Tracks: []Track{
