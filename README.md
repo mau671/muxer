@@ -2,12 +2,12 @@
 
 An MKV file processor with automatic track naming, language configuration, and beautiful progress visualization, completely rewritten in Go.
 
-## ✨ Enhanced Features
+## Enhanced Features
 
-- **🚀 Ultra Fast**: Built in Go 1.26 for maximum performance.
-- **📦 Zero-Dependencies**: Automatically downloads the required `mkvmerge` binaries if they are not installed on your system. You don't need to install MKVToolNix manually anymore!
-- **🎨 Beautiful Console Interface**: Rich UI with live progress bars powered by Bubbletea.
-- **📋 Detailed Track Processing**: Automatic business rules for Latin American Spanish, Japanese, English, forced tracks, and more.
+- **Ultra Fast**: Built in Go 1.26 for maximum performance.
+- **Zero-Dependencies**: Automatically downloads the required `mkvmerge` binaries if they are not installed on your system. You don't need to install MKVToolNix manually anymore!
+- **Beautiful Console Interface**: Rich UI with live progress bars powered by Bubbletea and Lipgloss.
+- **Detailed Track Processing**: Automatic business rules for Latin American Spanish, Japanese, English, forced tracks, and more.
 
 ## Installation
 
