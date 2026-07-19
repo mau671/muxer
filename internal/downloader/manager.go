@@ -16,10 +16,13 @@ import (
 func DownloadMkvmerge() error {
 	var url string
 
+	var ext string
 	if runtime.GOOS == "windows" {
 		url = "https://github.com/Jesseatgao/MKVToolNix-static-builds/releases/download/v58.0.0-mingw-w64-posixv1.8el9/mkvtoolnix-x86_64-win.zip"
+		ext = "*.zip"
 	} else if runtime.GOOS == "linux" {
 		url = "https://github.com/Jesseatgao/MKVToolNix-static-builds/releases/download/v58.0.0-mingw-w64-posixv1.8el9/mkvtoolnix-x86_64-linux.tar.xz"
+		ext = "*.tar.xz"
 	} else {
 		return fmt.Errorf("auto-download not supported for %s", runtime.GOOS)
 	}
@@ -39,7 +42,7 @@ func DownloadMkvmerge() error {
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	tmpFile, err := os.CreateTemp(cacheDir, "mkvtoolnix-*")
+	tmpFile, err := os.CreateTemp(cacheDir, "mkvtoolnix-"+ext)
 	if err != nil {
 		return err
 	}
