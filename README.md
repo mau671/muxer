@@ -14,10 +14,22 @@ Stop spending hours manually tagging and reordering tracks in MKVToolNix GUI. **
 
 ## Installation
 
-### Download the standalone binary
+### Automatic Install (Recommended)
 
-You can grab the latest pre-compiled binary for your system (Windows, macOS, or Linux) from our [Releases page](../../releases). 
-No dependencies required! Just download and run.
+**Linux & macOS**
+```bash
+curl -sSL https://raw.githubusercontent.com/mau671/muxer/main/install.sh | bash
+```
+
+**Windows (PowerShell)**
+```powershell
+irm https://raw.githubusercontent.com/mau671/muxer/main/install.ps1 | iex
+```
+
+### Manual Download
+
+You can grab the latest pre-compiled binary for your system (Windows, macOS, or Linux) directly from our [Releases page](../../releases). 
+No dependencies required! Just download, extract, and run.
 
 ### Compile from source
 
