@@ -1,0 +1,25 @@
+package mkv
+
+import (
+	"encoding/json"
+	"os/exec"
+
+	"github.com/mau671/muxer/internal/processor"
+)
+
+// GetMetadata runs mkvmerge -J on the file and parses the result
+func GetMetadata(binPath, filePath string) (processor.Metadata, error) {
+	cmd := exec.Command(binPath, "--identify", filePath, "--identification-format", "json")
+	output, err := cmd.Output()
+	if err != nil {
+		return processor.Metadata{}, err
+	}
+
+	var metadata processor.Metadata
+	err = json.Unmarshal(output, &metadata)
+	if err != nil {
+		return processor.Metadata{}, err
+	}
+
+	return metadata, nil
+}
