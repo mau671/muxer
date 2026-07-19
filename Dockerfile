@@ -1,39 +1,21 @@
-# Base image for Python and UV
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS runtime
+# Build stage
+FROM golang:1.26-alpine AS builder
 
-# Accept version as build argument
-ARG VERSION=0.1.0
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Install MKVToolNix and necessary dependencies
-RUN apk add --no-cache \
-    mkvtoolnix \
-    boost-filesystem \
-    boost-regex \
-    boost-system \
-    libmatroska \
-    libogg \
-    libvorbis \
-    cmark
+COPY . .
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o muxer cmd/muxer/main.go
 
-# Create directory for the application
+# Runtime stage
+FROM alpine:latest
+
+# Install mkvtoolnix so the Go binary doesn't need to auto-download it
+RUN apk add --no-cache mkvtoolnix
+
 WORKDIR /app
+COPY --from=builder /src/muxer /usr/local/bin/muxer
 
-# Copy project files to container
-COPY pyproject.toml uv.lock README.md LICENSE ./
-COPY app/ ./app/
-COPY run.py ./
-
-# Set version environment variable for hatch-vcs
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MUXER=$VERSION
-
-# Synchronize the environment with UV (without requiring git metadata)
-RUN uv sync --frozen --no-dev
-
-# Configure the PATH to include the virtual environment created by UV
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Create volume mount points
-VOLUME ["/data"]
-
-# Use ENTRYPOINT to properly handle arguments with the new entry point
-ENTRYPOINT ["uv", "run", "run.py"]
+ENTRYPOINT ["muxer"]

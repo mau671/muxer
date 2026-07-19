@@ -1,44 +1,41 @@
 #!/bin/bash
+# Local build script for Muxer (Go)
+# Usage: ./build.sh [options]
 
-# Script para builds locales del proyecto Muxer
-# Autor: Mauricio González Prendas
-# Uso: ./build.sh [opciones]
+set -e
 
-set -e  # Salir en caso de error
-
-# Colores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Función para mostrar ayuda
 show_help() {
-    echo "Uso: $0 [opciones]"
+    echo "Usage: $0 [options]"
     echo ""
-    echo "Opciones:"
-    echo "  -h, --help          Mostrar esta ayuda"
-    echo "  -c, --clean         Limpiar builds anteriores"
-    echo "  -d, --dev           Build de desarrollo (más rápido, menos optimizado)"
-    echo "  -r, --release       Build de release (optimizado, por defecto)"
-    echo "  -a, --arch ARCH     Arquitectura específica (amd64, arm64, auto)"
-    echo "  -v, --verbose       Output verboso"
+    echo "Options:"
+    echo "  -h, --help          Show this help message"
+    echo "  -c, --clean         Clean previous builds"
+    echo "  -d, --dev           Development build (faster, less optimized)"
+    echo "  -r, --release       Release build (optimized, default)"
+    echo "  -a, --arch ARCH     Specific architecture (amd64, arm64, all)"
+    echo "  -o, --os OS         Specific OS (linux, windows, darwin, all)"
+    echo "  -v, --verbose       Verbose output"
     echo ""
-    echo "Ejemplos:"
-    echo "  $0                  # Build de release para arquitectura actual"
-    echo "  $0 --clean --dev    # Limpiar y hacer build de desarrollo"
-    echo "  $0 --arch amd64     # Build específico para AMD64"
+    echo "Examples:"
+    echo "  $0                  # Release build for current OS and Architecture"
+    echo "  $0 --clean --dev    # Clean and perform a dev build"
+    echo "  $0 --os linux --arch amd64 # Build specifically for Linux AMD64"
+    echo "  $0 --os all --arch all     # Build for all supported platforms"
     echo ""
 }
 
-# Valores por defecto
 BUILD_TYPE="release"
 CLEAN=false
 VERBOSE=false
-ARCH="auto"
+TARGET_ARCH="auto"
+TARGET_OS="auto"
 
-# Parsear argumentos
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
@@ -58,7 +55,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -a|--arch)
-            ARCH="$2"
+            TARGET_ARCH="$2"
+            shift 2
+            ;;
+        -o|--os)
+            TARGET_OS="$2"
             shift 2
             ;;
         -v|--verbose)
@@ -66,206 +67,97 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            echo -e "${RED}Error: Opción desconocida $1${NC}"
+            echo -e "${RED}Error: Unknown option $1${NC}"
             show_help
             exit 1
             ;;
     esac
 done
 
-# Función para logging
-log() {
-    echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $1"
-}
+log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $1"; }
+log_success() { echo -e "${GREEN}[$(date +'%H:%M:%S')] ✓${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] ⚠${NC} $1"; }
+log_error() { echo -e "${RED}[$(date +'%H:%M:%S')] ✗${NC} $1"; }
 
-log_success() {
-    echo -e "${GREEN}[$(date +'%H:%M:%S')] ✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[$(date +'%H:%M:%S')] ⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[$(date +'%H:%M:%S')] ✗${NC} $1"
-}
-
-# Detectar arquitectura actual
-detect_arch() {
-    local machine=$(uname -m)
-    case $machine in
-        x86_64)
-            echo "amd64"
-            ;;
-        aarch64|arm64)
-            echo "arm64"
-            ;;
-        *)
-            log_error "Arquitectura no soportada: $machine"
-            exit 1
-            ;;
+get_current_arch() {
+    case $(uname -m) in
+        x86_64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) echo "amd64" ;;
     esac
 }
 
-# Verificar dependencias
-check_dependencies() {
-    log "Verificando dependencias..."
-    
-    if ! command -v uv &> /dev/null; then
-        log_error "uv no está instalado. Instálalo con: pip install uv"
-        exit 1
-    fi
-    
-    if ! command -v git &> /dev/null; then
-        log_error "git no está instalado"
-        exit 1
-    fi
-    
-    log_success "Todas las dependencias están disponibles"
+get_current_os() {
+    case $(uname -s) in
+        Linux*) echo "linux" ;;
+        Darwin*) echo "darwin" ;;
+        CYGWIN*|MINGW32*|MSYS*|MINGW*) echo "windows" ;;
+        *) echo "linux" ;;
+    esac
 }
 
-# Limpiar builds anteriores
-clean_builds() {
-    if [ "$CLEAN" = true ]; then
-        log "Limpiando builds anteriores..."
-        rm -rf dist/ build/ *.spec .venv/
-        log_success "Limpieza completada"
-    fi
-}
+if [ "$TARGET_ARCH" = "auto" ]; then
+    TARGET_ARCH=$(get_current_arch)
+fi
 
-# Configurar entorno
-setup_environment() {
-    log "Configurando entorno de desarrollo..."
-    
-    # Sincronizar dependencias
-    if [ "$BUILD_TYPE" = "dev" ]; then
-        uv sync --group dev
-    else
-        uv sync --group dev
-    fi
-    
-    log_success "Entorno configurado"
-}
+if [ "$TARGET_OS" = "auto" ]; then
+    TARGET_OS=$(get_current_os)
+fi
 
-# Obtener información de versión
-get_version_info() {
-    local commit_count=$(git rev-list --count HEAD 2>/dev/null || echo "0")
-    local git_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-    local version="1.0.${commit_count}"
-    
-    echo "Versión: $version"
-    echo "Commit: $git_hash"
-    echo "Commits: $commit_count"
-}
-
-# Hacer el build
 build_binary() {
-    local target_arch="$1"
-    local binary_name="muxer-linux-${target_arch}"
+    local os=$1
+    local arch=$2
     
-    log "Iniciando build para arquitectura: $target_arch"
-    log "Tipo de build: $BUILD_TYPE"
+    local output_name="bin/muxer-${os}-${arch}"
+    if [ "$os" = "windows" ]; then
+        output_name="${output_name}.exe"
+    fi
+
+    log "Building for $os/$arch..."
     
-    # Mostrar información de versión
-    get_version_info
-    
-    # Crear directorio dist si no existe
-    mkdir -p dist
-    
-    # Configurar argumentos de PyInstaller
-    local pyinstaller_args=(
-        "--onefile"
-        "--name" "$binary_name"
-        "--hidden-import=app"
-        "--add-data" "app:app"
-        "run.py"
-    )
-    
-    # Argumentos adicionales según el tipo de build
+    local ldflags="-X github.com/mau671/muxer/internal/cli.Version=dev"
     if [ "$BUILD_TYPE" = "release" ]; then
-        pyinstaller_args+=("--strip" "--noupx")
-        log "Build de release: aplicando optimizaciones"
-    else
-        log "Build de desarrollo: sin optimizaciones"
+        ldflags="-s -w $ldflags"
     fi
-    
-    # Argumentos de verbose si está habilitado
+
+    export GOOS=$os
+    export GOARCH=$arch
+    export CGO_ENABLED=0
+
     if [ "$VERBOSE" = true ]; then
-        pyinstaller_args+=("--log-level" "DEBUG")
-    fi
-    
-    # Ejecutar PyInstaller
-    log "Ejecutando PyInstaller..."
-    if [ "$VERBOSE" = true ]; then
-        uv run pyinstaller "${pyinstaller_args[@]}"
+        go build -v -ldflags="$ldflags" -o "$output_name" cmd/muxer/main.go
     else
-        uv run pyinstaller "${pyinstaller_args[@]}" --log-level WARN
+        go build -ldflags="$ldflags" -o "$output_name" cmd/muxer/main.go
     fi
-    
-    # Verificar que el binario se creó correctamente
-    if [ -f "dist/$binary_name" ]; then
-        log_success "Build completado exitosamente"
-        
-        # Mostrar información del binario
-        echo ""
-        echo "📦 Información del binario:"
-        echo "   Archivo: dist/$binary_name"
-        echo "   Tamaño: $(du -h "dist/$binary_name" | cut -f1)"
-        echo "   Tipo: $(file "dist/$binary_name" | cut -d: -f2- | sed 's/^ *//')"
-        
-        # Hacer el binario ejecutable
-        chmod +x "dist/$binary_name"
-        
-        # Probar que el binario funciona
-        log "Probando el binario..."
-        if "./dist/$binary_name" --version &> /dev/null; then
-            log_success "El binario funciona correctamente"
-        else
-            log_warning "No se pudo verificar la funcionalidad del binario"
-        fi
-        
-    else
-        log_error "Error: No se pudo crear el binario"
-        exit 1
-    fi
+
+    log_success "Binary created at $output_name"
 }
 
-# Función principal
-main() {
-    echo ""
-    echo "🔨 Muxer Local Build Script"
-    echo "=========================="
-    echo ""
-    
-    # Determinar arquitectura
-    if [ "$ARCH" = "auto" ]; then
-        ARCH=$(detect_arch)
-        log "Arquitectura detectada automáticamente: $ARCH"
-    else
-        log "Usando arquitectura especificada: $ARCH"
-    fi
-    
-    # Verificar que estamos en el directorio correcto
-    if [ ! -f "pyproject.toml" ]; then
-        log_error "Error: No se encontró pyproject.toml. Ejecuta este script desde el directorio raíz del proyecto."
-        exit 1
-    fi
-    
-    # Ejecutar pasos del build
-    check_dependencies
-    clean_builds
-    setup_environment
-    build_binary "$ARCH"
-    
-    echo ""
-    log_success "🎉 Build completado exitosamente!"
-    echo ""
-    echo "El binario está disponible en: dist/muxer-linux-$ARCH"
-    echo ""
-    echo "Para probar el binario:"
-    echo "  ./dist/muxer-linux-$ARCH --help"
-    echo ""
-}
+if [ "$CLEAN" = true ]; then
+    log "Cleaning build directory..."
+    rm -rf bin/
+    log_success "Cleaned."
+fi
 
-# Ejecutar función principal
-main "$@" 
+mkdir -p bin
+
+log "Starting $BUILD_TYPE build process..."
+
+if [ "$TARGET_OS" = "all" ] && [ "$TARGET_ARCH" = "all" ]; then
+    build_binary "linux" "amd64"
+    build_binary "linux" "arm64"
+    build_binary "windows" "amd64"
+    build_binary "darwin" "amd64"
+    build_binary "darwin" "arm64"
+elif [ "$TARGET_OS" = "all" ]; then
+    build_binary "linux" "$TARGET_ARCH"
+    build_binary "windows" "$TARGET_ARCH"
+    build_binary "darwin" "$TARGET_ARCH"
+elif [ "$TARGET_ARCH" = "all" ]; then
+    build_binary "$TARGET_OS" "amd64"
+    build_binary "$TARGET_OS" "arm64"
+else
+    build_binary "$TARGET_OS" "$TARGET_ARCH"
+fi
+
+log_success "Build process completed!"
