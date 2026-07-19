@@ -39,6 +39,23 @@ func TestProcessTracks_SpainSpanishFallback(t *testing.T) {
 	}
 }
 
+func TestProcessTracks_SpainSpanishFallbackSubs(t *testing.T) {
+	metadata := Metadata{
+		Tracks: []Track{
+			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "jpn"}},
+			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "spa", LanguageIETF: "es-ES"}},
+			{ID: 3, Type: "subtitles", Properties: TrackProperties{Language: "eng"}},
+		},
+	}
+	res := ProcessTracks(metadata, false, "")
+	
+	if !res[1].Properties.DefaultTrack {
+		t.Errorf("Generic/Spain sub should be default if no spanish audio and no latin sub")
+	}
+	if res[2].Properties.DefaultTrack {
+		t.Errorf("English sub should not be default if Spanish sub took it")
+	}
+}
 func TestProcessTracks_EnglishFallback(t *testing.T) {
 	metadata := Metadata{
 		Tracks: []Track{
