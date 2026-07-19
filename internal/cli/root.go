@@ -68,12 +68,27 @@ func processDirectory(inDir, outDir string) {
 		outDir = inDir
 	}
 
+	absInDir, _ := filepath.Abs(inDir)
+	absOutDir, _ := filepath.Abs(outDir)
+
 	foundMkv := false
 	err := filepath.WalkDir(inDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
+		absPath, _ := filepath.Abs(path)
+
+		// Skip the output directory if it's nested inside the input directory (to avoid cyclic processing)
+		if d.IsDir() && absPath == absOutDir && absPath != absInDir {
+			return filepath.SkipDir
+		}
+
 		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".mkv") {
+			// Skip already processed files if processing in-place
+			if strings.HasSuffix(strings.ToLower(d.Name()), "_processed.mkv") {
+				return nil
+			}
 			foundMkv = true
 
 			// Create relative path for output
