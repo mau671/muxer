@@ -38,22 +38,28 @@ var updateCmd = &cobra.Command{
 		}
 
 		if latest.Version() == cleanVersion {
-			fmt.Println("You are already using the latest version!")
+			fmt.Println("✅ You are already using the latest version!")
 			return
 		}
 
-		fmt.Printf("Found new version: %s\n", latest.Version())
-		fmt.Println("Downloading and applying update...")
+		fmt.Printf("🚀 Found new version: %s\n", latest.Version())
+		fmt.Println("📥 Downloading and applying update...")
 
 		exe, err := os.Executable()
 		if err != nil {
-			fmt.Printf("Error locating executable: %v\n", err)
+			fmt.Printf("❌ Error locating executable: %v\n", err)
 			os.Exit(1)
 		}
 
 		err = updater.UpdateTo(context.Background(), latest, exe)
 		if err != nil {
-			fmt.Printf("Error updating binary: %v\n", err)
+			if strings.Contains(strings.ToLower(err.Error()), "permission denied") {
+				fmt.Println("❌ Permission denied. The executable is likely located in a protected system directory.")
+				fmt.Println("👉 Please try running the command with administrator privileges:")
+				fmt.Println("   sudo muxer update")
+			} else {
+				fmt.Printf("❌ Error updating binary: %v\n", err)
+			}
 			os.Exit(1)
 		}
 
