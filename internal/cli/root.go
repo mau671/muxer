@@ -112,6 +112,13 @@ func processSingleFile(in, out string) {
 		}
 
 		processedTracks := processor.ProcessTracks(metadata)
+		
+		p.Send(ui.MetadataMsg{
+			OutFilename: out,
+			Metadata:    metadata,
+			Processed:   processedTracks,
+		})
+
 		mkvArgs := mkv.BuildCommand(in, out, processedTracks)
 
 		progressChan := make(chan int)
