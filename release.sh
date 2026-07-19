@@ -2,7 +2,7 @@
 # Script to create a new release using CalVer (vYY.MM.PATCH)
 
 # Get current Year and Month (e.g., 24.10)
-CALVER_PREFIX=$(date +'%y.%m')
+CALVER_PREFIX=$(date +'%y.%-m')
 
 # Find the latest tag that matches this month
 LAST_TAG=$(git tag -l "v$CALVER_PREFIX.*" --sort=-v:refname | head -n 1)
