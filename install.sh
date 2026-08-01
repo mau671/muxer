@@ -13,6 +13,9 @@ set -e
 REPO="mau671/muxer"
 BIN_NAME="muxer"
 
+# Locations where old versions used to be installed globally
+LEGACY_GLOBAL_PATHS="/usr/local/bin/${BIN_NAME} /usr/bin/${BIN_NAME}"
+
 echo "Detecting OS and Architecture..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -52,6 +55,32 @@ _run_privileged() {
     fi
 }
 
+# ── Migrate old global installs ────────────────────────────────────────────────
+
+_migrate_legacy() {
+    for old_path in $LEGACY_GLOBAL_PATHS; do
+        [ -f "$old_path" ] || continue
+
+        echo ""
+        echo "🔍 Found a previous global installation at: $old_path"
+
+        # Only attempt removal if it's actually our binary (check for muxer signature)
+        if _run_privileged rm -f "$old_path" 2>/dev/null; then
+            echo "   ✅ Removed old global binary from $old_path"
+        else
+            # Could not remove — no privilege tool or permission denied
+            echo "   ⚠️  Could not remove $old_path (no sudo/doas available or permission denied)."
+            echo "      The new version will be installed in $INSTALL_DIR."
+            echo ""
+            echo "      To avoid conflicts, you may want to remove the old binary manually:"
+            echo "        sudo rm -f $old_path"
+            echo ""
+            echo "      Until then, your shell may still pick up the old version depending"
+            echo "      on the order of entries in your \$PATH."
+        fi
+    done
+}
+
 # ── Determine install directory ────────────────────────────────────────────────
 
 if [ -n "$MUXER_DIR" ]; then
@@ -67,6 +96,9 @@ else
     INSTALL_DIR="${HOME}/.local/bin"
     NEED_PRIV=0
 fi
+
+# Run migration before installing (so we know the INSTALL_DIR already)
+_migrate_legacy
 
 # ── Download ───────────────────────────────────────────────────────────────────
 
