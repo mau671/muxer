@@ -33,7 +33,7 @@ func DownloadMkvmerge() error {
 		return fmt.Errorf("auto-download not supported for %s %s. Please install MKVToolNix manually", runtime.GOOS, runtime.GOARCH)
 	}
 
-	cacheDir, err := config.GetCacheDir()
+	binDir, err := config.GetBinDir()
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func DownloadMkvmerge() error {
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	tmpFile, err := os.CreateTemp(cacheDir, "mkvtoolnix-"+ext)
+	tmpFile, err := os.CreateTemp(binDir, "mkvtoolnix-"+ext)
 	if err != nil {
 		return err
 	}

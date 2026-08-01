@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"github.com/mau671/muxer/internal/config"
 	"github.com/mau671/muxer/internal/mkv"
 	"github.com/mau671/muxer/internal/processor"
 	"github.com/mau671/muxer/internal/ui"
@@ -40,6 +41,10 @@ func init() {
 }
 
 func Execute() {
+	// Silently migrate files from the legacy ~/.cache/muxer/bin/ layout
+	// to the new ~/.local/share/muxer/ layout on first run after upgrade.
+	config.Migrate()
+
 	// Intentar cargar variables desde .env (opcional)
 	_ = godotenv.Load()
 

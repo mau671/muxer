@@ -16,13 +16,13 @@ type APICache struct {
 }
 
 func NewAPICache() (*APICache, error) {
-	cacheDir, err := config.GetCacheDir()
+	dataDir, err := config.GetDataDir()
 	if err != nil {
 		return nil, err
 	}
 
-	cacheFile := filepath.Join(cacheDir, "api_cache.json")
-	
+	cacheFile := filepath.Join(dataDir, "tmdb_cache.json")
+
 	cache := &APICache{
 		path: cacheFile,
 		Data: make(map[string]string),
