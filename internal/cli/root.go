@@ -45,8 +45,20 @@ func Execute() {
 	// to the new ~/.local/share/muxer/ layout on first run after upgrade.
 	config.Migrate()
 
-	// Intentar cargar variables desde .env (opcional)
-	_ = godotenv.Load()
+	// Load environment variables from .env files.
+	//
+	// Priority (highest → lowest):
+	//   1. Variables already set in the environment (shell exports, etc.)
+	//   2. CWD .env  — project-specific overrides
+	//   3. ~/.local/share/muxer/.env — global user config (TMDB_API_KEY, etc.)
+	//
+	// godotenv.Load does NOT overwrite variables that are already set, so
+	// loading the global file first and the local file second is enough to
+	// give local values higher precedence.
+	if dataDir, err := config.GetDataDir(); err == nil {
+		_ = godotenv.Load(filepath.Join(dataDir, ".env"))
+	}
+	_ = godotenv.Load() // CWD .env — overrides global
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
