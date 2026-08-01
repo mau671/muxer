@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: >
+          Version to release (e.g. v26.8.1).
+          Leave empty to auto-compute the next CalVer (vYY.M.N).
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # full history needed to inspect existing tags
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          cache: true
+
+      # ── Determine version ────────────────────────────────────────────────────
+      # CalVer format: vYY.M.N  (2-digit year, month without leading zero, patch)
+      # Examples: v26.7.5  v26.8.1
+      #
+      # Auto-compute logic:
+      #   1. Find the latest tag matching the CalVer pattern.
+      #   2. If it belongs to the current YY.M → increment patch.
+      #   3. If it belongs to a previous month / year → start at 1.
+      #   4. If no tag exists at all → start at vYY.M.1
+      - name: Determine version
+        id: version
+        run: |
+          INPUT="${{ github.event.inputs.version }}"
+
+          if [ -n "$INPUT" ]; then
+            VERSION="$INPUT"
+            # Normalise: ensure it has a 'v' prefix
+            case "$VERSION" in
+              v*) ;;
+              *)  VERSION="v$VERSION" ;;
+            esac
+          else
+            CURRENT_YEAR=$(date -u +%y)          # e.g. 26
+            CURRENT_MONTH=$(date -u +%-m)        # e.g. 8  (no leading zero)
+
+            # Latest tag that matches our CalVer pattern (vYY.M.N or vYY.MM.N)
+            LATEST=$(git tag --sort=-version:refname \
+                       | grep -E '^v[0-9]{2}\.[0-9]{1,2}\.[0-9]+$' \
+                       | head -1)
+
+            if [ -n "$LATEST" ]; then
+              TAG_BODY="${LATEST#v}"                                      # 26.7.5
+              TAG_YEAR=$(echo "$TAG_BODY"  | cut -d. -f1)                # 26
+              TAG_MONTH=$(echo "$TAG_BODY" | cut -d. -f2 | sed 's/^0*//') # 7 (strip leading zeros for comparison)
+              TAG_PATCH=$(echo "$TAG_BODY" | cut -d. -f3)                # 5
+
+              if [ "$TAG_YEAR" = "$CURRENT_YEAR" ] && [ "$TAG_MONTH" = "$CURRENT_MONTH" ]; then
+                NEXT_PATCH=$((TAG_PATCH + 1))
+                VERSION="v${CURRENT_YEAR}.${CURRENT_MONTH}.${NEXT_PATCH}"
+              else
+                VERSION="v${CURRENT_YEAR}.${CURRENT_MONTH}.1"
+              fi
+            else
+              VERSION="v${CURRENT_YEAR}.${CURRENT_MONTH}.1"
+            fi
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      # ── Validate that the tag does not already exist ─────────────────────────
+      - name: Check tag does not exist
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Error: tag $VERSION already exists. Choose a different version."
+            exit 1
+          fi
+
+      # ── Create and push the tag ───────────────────────────────────────────────
+      - name: Tag commit
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+      # ── Build and publish release via GoReleaser ──────────────────────────────
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
