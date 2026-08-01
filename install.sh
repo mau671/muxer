@@ -2,6 +2,13 @@
 set -e
 
 # Muxer Installation Script for Linux & macOS
+#
+# Usage:
+#   curl -sSL https://raw.githubusercontent.com/mau671/muxer/main/install.sh | bash
+#
+# Options (via environment variables):
+#   MUXER_SYSTEM=1   Install to /usr/local/bin instead of ~/.local/bin (requires root or sudo/doas)
+#   MUXER_DIR=/path  Install to a custom directory
 
 REPO="mau671/muxer"
 BIN_NAME="muxer"
@@ -12,8 +19,8 @@ ARCH=$(uname -m)
 
 # Map architecture to standard Go release names
 case "$ARCH" in
-    x86_64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
+    x86_64)          ARCH="amd64" ;;
+    aarch64|arm64)   ARCH="arm64" ;;
     *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
@@ -29,27 +36,88 @@ fi
 
 echo "Latest version found: $VERSION"
 
-# Format matches the new GoReleaser naming convention: muxer_VERSION_os_arch.tar.gz
+# ── Privilege helper ───────────────────────────────────────────────────────────
+
+# Try to run a command with elevated privileges (sudo, doas, or direct if root).
+# Returns 0 on success, 1 if no privilege escalation tool is available.
+_run_privileged() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
+    else
+        return 1
+    fi
+}
+
+# ── Determine install directory ────────────────────────────────────────────────
+
+if [ -n "$MUXER_DIR" ]; then
+    # Explicit custom directory
+    INSTALL_DIR="$MUXER_DIR"
+    NEED_PRIV=0
+elif [ "${MUXER_SYSTEM:-0}" = "1" ] || [ "$(id -u)" -eq 0 ]; then
+    # System-wide install: either requested explicitly or we are already root
+    INSTALL_DIR="/usr/local/bin"
+    NEED_PRIV=1
+else
+    # Default: user-local install (no sudo required)
+    INSTALL_DIR="${HOME}/.local/bin"
+    NEED_PRIV=0
+fi
+
+# ── Download ───────────────────────────────────────────────────────────────────
+
+# Format matches the GoReleaser naming convention: muxer_VERSION_os_arch.tar.gz
 ASSET_NAME="${BIN_NAME}_${VERSION}_${OS}_${ARCH}.tar.gz"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/v${VERSION}/${ASSET_NAME}"
 
-# Temporary directory for download
 TMP_DIR=$(mktemp -d)
-cd "$TMP_DIR"
+# Ensure cleanup on exit
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 echo "Downloading $ASSET_NAME..."
-curl -L -o release.tar.gz "$DOWNLOAD_URL"
+curl -L --fail -o "$TMP_DIR/release.tar.gz" "$DOWNLOAD_URL"
 
 echo "Extracting binary..."
-tar -xzf release.tar.gz "$BIN_NAME"
+tar -xzf "$TMP_DIR/release.tar.gz" -C "$TMP_DIR" "$BIN_NAME"
 
-echo "Installing to /usr/local/bin (may require sudo)..."
-sudo mv "$BIN_NAME" /usr/local/bin/
-sudo chmod +x /usr/local/bin/"$BIN_NAME"
+# ── Install ────────────────────────────────────────────────────────────────────
 
-# Clean up
-cd - > /dev/null
-rm -rf "$TMP_DIR"
+if [ "$NEED_PRIV" -eq 0 ]; then
+    mkdir -p "$INSTALL_DIR"
+    mv "$TMP_DIR/$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
+    chmod +x "$INSTALL_DIR/$BIN_NAME"
+else
+    if ! _run_privileged mkdir -p "$INSTALL_DIR" || \
+       ! _run_privileged mv "$TMP_DIR/$BIN_NAME" "$INSTALL_DIR/$BIN_NAME" || \
+       ! _run_privileged chmod +x "$INSTALL_DIR/$BIN_NAME"; then
+        echo ""
+        echo "Error: root privileges required but neither sudo nor doas is available."
+        echo "Re-run as root, or omit MUXER_SYSTEM=1 to install to ~/.local/bin instead."
+        exit 1
+    fi
+fi
 
-echo "✅ Successfully installed Muxer v$VERSION to /usr/local/bin/$BIN_NAME"
+echo ""
+echo "✅ Successfully installed Muxer v$VERSION to $INSTALL_DIR/$BIN_NAME"
+
+# ── PATH warning ───────────────────────────────────────────────────────────────
+
+case ":${PATH}:" in
+    *":${INSTALL_DIR}:"*)
+        # Already in PATH, nothing to do
+        ;;
+    *)
+        echo ""
+        echo "⚠️  '$INSTALL_DIR' is not in your PATH."
+        echo "   Add this line to your shell profile (~/.bashrc, ~/.zshrc, ~/.profile, etc.):"
+        echo ""
+        echo "     export PATH=\"\$PATH:$INSTALL_DIR\""
+        echo ""
+        ;;
+esac
+
 echo "Run 'muxer --help' to get started."
