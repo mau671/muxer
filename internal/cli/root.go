@@ -141,9 +141,11 @@ func processSingleFile(in, out string) {
 		ext := filepath.Ext(in)
 		base := strings.TrimSuffix(in, ext)
 		out = base + "_processed" + ext
+	} else if info, err := os.Stat(out); (err == nil && info.IsDir()) || strings.HasSuffix(out, "/") || strings.HasSuffix(out, "\\") {
+		out = filepath.Join(out, filepath.Base(in))
 	}
 
-	p := tea.NewProgram(ui.NewModel(filepath.Base(in)))
+	p := tea.NewProgram(ui.NewModel(filepath.Base(in)), tea.WithInput(strings.NewReader("")))
 
 	go func() {
 		p.Send(ui.InfoMsg("Looking for mkvmerge..."))
@@ -169,8 +171,12 @@ func processSingleFile(in, out string) {
 			}
 
 			// Extract ID from full path, e.g., [tvdbid-12345] or [tmdbid-67890]
+			pathToSearch := in
+			if absPath, err := filepath.Abs(in); err == nil {
+				pathToSearch = absPath
+			}
 			idRegex := regexp.MustCompile(`\[(tvdbid-[0-9]+|tmdbid-[0-9]+)\]`)
-			match := idRegex.FindString(in)
+			match := idRegex.FindString(pathToSearch)
 			
 			if match != "" {
 				// match is like "[tvdbid-12345]"

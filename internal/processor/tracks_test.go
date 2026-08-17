@@ -74,19 +74,52 @@ func TestProcessTracks_EnglishFallback(t *testing.T) {
 }
 
 func TestProcessTracks_JapaneseAudio(t *testing.T) {
-	metadata := Metadata{
+	metadataWithoutEngAudio := Metadata{
 		Tracks: []Track{
 			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "jpn"}},
 			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "eng", TrackName: "Signs", ForcedTrack: true}},
 		},
 	}
-	res := ProcessTracks(metadata, false, "")
-	
-	if res[0].Properties.TrackName != "Japanese" || !res[0].Properties.DefaultTrack {
-		t.Errorf("Japanese should be default if no spanish")
+	resWithout := ProcessTracks(metadataWithoutEngAudio, false, "")
+	if len(resWithout) != 1 || resWithout[0].Properties.TrackName != "Japanese" {
+		t.Errorf("English forced subtitle should be dropped if no English audio is present")
 	}
-	if res[1].Properties.TrackName != "English [Forced]" || !res[1].Properties.ForcedTrack {
-		t.Errorf("English forced subtitle handling failed")
+
+	metadataWithEngAudio := Metadata{
+		Tracks: []Track{
+			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "jpn"}},
+			{ID: 2, Type: "audio", Properties: TrackProperties{Language: "eng"}},
+			{ID: 3, Type: "subtitles", Properties: TrackProperties{Language: "eng", TrackName: "Signs", ForcedTrack: true}},
+		},
+	}
+	resWith := ProcessTracks(metadataWithEngAudio, false, "")
+	if len(resWith) != 3 || resWith[2].Properties.TrackName != "English [Forced]" || !resWith[2].Properties.ForcedTrack {
+		t.Errorf("English forced subtitle should be retained if English audio is present")
+	}
+}
+
+func TestProcessTracks_EnglishDubtitles(t *testing.T) {
+	metadataWithoutEngAudio := Metadata{
+		Tracks: []Track{
+			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "jpn"}},
+			{ID: 2, Type: "subtitles", Properties: TrackProperties{Language: "eng", TrackName: "English Dubtitle"}},
+		},
+	}
+	resWithout := ProcessTracks(metadataWithoutEngAudio, false, "")
+	if len(resWithout) != 1 || resWithout[0].Properties.TrackName != "Japanese" {
+		t.Errorf("English dubtitles should be dropped if no English audio is present")
+	}
+
+	metadataWithEngAudio := Metadata{
+		Tracks: []Track{
+			{ID: 1, Type: "audio", Properties: TrackProperties{Language: "jpn"}},
+			{ID: 2, Type: "audio", Properties: TrackProperties{Language: "eng"}},
+			{ID: 3, Type: "subtitles", Properties: TrackProperties{Language: "eng", TrackName: "English Dubtitle"}},
+		},
+	}
+	resWith := ProcessTracks(metadataWithEngAudio, false, "")
+	if len(resWith) != 3 || resWith[2].Properties.TrackName != "English [Dubtitle]" {
+		t.Errorf("English dubtitles should be retained if English audio is present")
 	}
 }
 

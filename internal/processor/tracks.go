@@ -285,6 +285,14 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 		}
 	}
 
+	hasEnglishAudio := false
+	for _, t := range processedAudioTracks {
+		if t.Properties.Language == "eng" || strings.HasPrefix(t.Properties.LanguageIETF, "en") {
+			hasEnglishAudio = true
+			break
+		}
+	}
+
 	// Subtitles pass 3: English
 	for _, track := range subtitleTracks {
 		lang := track.Properties.Language
@@ -292,7 +300,20 @@ func ProcessTracks(metadata Metadata, originalOnly bool, originalLanguage string
 		title := strings.ToLower(track.Properties.TrackName)
 
 		if lang == "eng" {
-			if strings.Contains(title, "forced") || strings.Contains(title, "forzad") || strings.Contains(title, "signs") || forced {
+			isForced := strings.Contains(title, "forced") || strings.Contains(title, "forzad") || strings.Contains(title, "signs") || forced
+			isDubtitle := strings.Contains(title, "dub")
+
+			// Skip forced English subtitles if there is no English audio retained
+			if isForced && !hasEnglishAudio {
+				continue
+			}
+
+			// Skip English dubtitles if there is no English audio retained
+			if isDubtitle && !hasEnglishAudio {
+				continue
+			}
+
+			if isForced {
 				track.Properties.TrackName = "English [Forced]"
 				track.Properties.ForcedTrack = true
 			} else {
